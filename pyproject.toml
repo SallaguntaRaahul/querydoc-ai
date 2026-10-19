@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "querydoc-ai"
+version = "0.1.0"
+description = "QueryDoc AI — Local PDF Retrieval-Augmented Generation System"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+authors = [{ name = "Raahul Sallagunta" }]
+dependencies = [
+    "pymupdf>=1.24",
+    "langchain-core>=0.3",
+    "langchain-text-splitters>=0.3",
+    "sentence-transformers>=3.0",
+    "transformers>=4.45",
+    "torch>=2.3",
+    "faiss-cpu>=1.8",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "psutil>=5.9",
+    "rank-bm25>=0.2.2",
+    "streamlit>=1.38",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-timeout>=2.3", "ruff>=0.6", "mypy>=1.11", "matplotlib>=3.8", "reportlab>=4.2"]
+ocr = ["pytesseract>=0.3"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = [
+    "slow: needs model downloads or long runtime",
+    "llm: needs the local generation model",
+]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true
+files = ["src/querydoc"]
