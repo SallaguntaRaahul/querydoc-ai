@@ -114,13 +114,29 @@ def main() -> int:
             "results/retrieval_latency/results.json")
     else:
         add("Retrieval latency", "p95 < 300 ms", NOT_TESTED, "", "results/retrieval_latency/results.json")
+    lat_cpu = load("retrieval_latency_cpu/results.json")
+    if lat_cpu:
+        big = [v for v in lat_cpu["summary"].values() if v["config"] == "optimized" and v["pages"] >= 100]
+        worst = max(big, key=lambda v: v["pooled"]["p95_ms"])
+        add("Retrieval latency, CPU-only reranker", "p95 < 300 ms on 100+ page docs",
+            PASS if all(v["pooled"]["p95_ms"] < 300 for v in big) else FAIL,
+            f"worst p95 {worst['pooled']['p95_ms']:.0f} ms ({worst['dataset']})",
+            "results/retrieval_latency_cpu/results.json")
+    if gen:
+        default = gen["summary"].get("Qwen/Qwen2.5-1.5B-Instruct") or next(iter(gen["summary"].values()))
+        e2e = default["end_to_end_latency"]
+        add("End-to-end answer latency (default LLM)", "< 300 ms (stretch; not a stated target)",
+            PASS if e2e["p95_ms"] < 300 else FAIL,
+            f"p50 {e2e['p50_ms'] / 1000:.1f} s, p95 {e2e['p95_ms'] / 1000:.1f} s", "results/generation/results.json")
     if rel:
         t = rel["comparison"]["test"]
+        a = rel["comparison"]["all"]
         imp = t["relative_improvement_pct"]["ndcg@5"]
         add("Context relevance improvement", ">= 40% relative (nDCG@5, held-out test split)",
             PASS if imp >= 40 else FAIL,
             f"{t['baseline']['ndcg@5']:.3f} -> {t['optimized']['ndcg@5']:.3f} = {imp:+.1f}% "
-            f"(CI95 {t['primary_metric_ci95_pct'][0]:+.0f}..{t['primary_metric_ci95_pct'][1]:+.0f}%)",
+            f"(CI95 {t['primary_metric_ci95_pct'][0]:+.0f}..{t['primary_metric_ci95_pct'][1]:+.0f}%); "
+            f"all 63 questions {a['relative_improvement_pct']['ndcg@5']:+.1f}%",
             "results/relevance/results.json")
     else:
         add("Context relevance improvement", ">= 40%", NOT_TESTED, "", "results/relevance/results.json")
@@ -130,18 +146,35 @@ def main() -> int:
         red = c["peak_rss_reduction_pct"]
         add("Peak-memory reduction", ">= 35% peak RSS, batched streaming vs unbatched single pass",
             PASS if red is not None and red >= 35 else FAIL,
-            f"{red:.1f}% vs single pass; {strict['peak_rss_reduction_pct']:.1f}% vs batch-256 encode",
+            f"{red:.1f}% vs single pass; {strict['peak_rss_reduction_pct']:.1f}% vs batch-256; "
+            f"{emb['comparisons']['batch_32_vs_streaming_32']['peak_rss_reduction_pct']:.1f}% vs library default batch-32",
             "results/embeddings/results.json")
     else:
         add("Peak-memory reduction", ">= 35%", NOT_TESTED, "", "results/embeddings/results.json")
     if conc:
         levels = conc["retrieval"]
         clean = all(r["error_rate"] == 0 for r in levels)
+        gen_levels = conc.get("generation", [])
+        if gen_levels:
+            ok_upto = max((r["users"] for r in gen_levels if r["error_rate"] == 0), default=0)
+            add("Concurrent generation", "info: bounded admission control",
+                PASS if ok_upto >= 2 else FAIL,
+                f"0 errors up to {ok_upto} users; "
+                + ", ".join(f"{r['users']}u: {r['errors']}" for r in gen_levels if r["errors"]),
+                "results/concurrency/results.json")
         add("Concurrent retrieval", "Tested at multiple loads",
             PASS if len(levels) >= 3 and clean else FAIL,
             ", ".join(f"{r['users']}u: {r['throughput_rps']:.0f} rps p95 {r['latency']['p95_ms']:.0f} ms" for r in levels),
             "results/concurrency/results.json")
     else:
+        gen_levels = conc.get("generation", [])
+        if gen_levels:
+            ok_upto = max((r["users"] for r in gen_levels if r["error_rate"] == 0), default=0)
+            add("Concurrent generation", "info: bounded admission control",
+                PASS if ok_upto >= 2 else FAIL,
+                f"0 errors up to {ok_upto} users; "
+                + ", ".join(f"{r['users']}u: {r['errors']}" for r in gen_levels if r["errors"]),
+                "results/concurrency/results.json")
         add("Concurrent retrieval", "Tested at multiple loads", NOT_TESTED, "", "results/concurrency/results.json")
 
     # app / tests / docs ------------------------------------------------------

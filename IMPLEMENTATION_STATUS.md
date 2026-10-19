@@ -14,19 +14,25 @@ lives in `results/acceptance/ACCEPTANCE.md` and `docs/RESUME_CLAIM_VALIDATION.md
 | 5 | Embeddings | Done | all-MiniLM-L6-v2, streaming batches, content-hash cache |
 | 6 | FAISS + persistence | Done | IndexIDMap2(Flat/HNSW), checksummed manifest, atomic save |
 | 7 | Retrieval & relevance | Done | BM25 hybrid (RRF), dedup, MMR, cross-encoder rerank |
-| 8 | Local HF generation | Done | Qwen2.5-0.5B-Instruct default (Apache-2.0), MPS/CPU |
+| 8 | Local HF generation | Done | Qwen2.5-1.5B-Instruct default (measured vs 0.5B), MPS/CPU |
 | 9 | Citations | Done | tag parsing, existence/doc checks, lexical support scoring |
 | 10 | Streamlit app | Done | workspace, chat, source explorer w/ page render, perf tab |
 | 11 | Concurrency controls | Done | RW lock on index, generation gate (active/queue/timeout) |
-| 12 | Automated tests | In progress | unit / integration / e2e (LLM) / performance / security |
-| 13 | Benchmarks | In progress | `benchmarks/`, raw results in `results/` |
-| 14 | Optimization & retest | In progress | see `docs/EXPERIMENTS.md` |
-| 15 | Documentation | In progress | `docs/` |
-| 16 | Acceptance validation | In progress | `scripts/acceptance.py` |
-| 17 | Handover | In progress | README + final report |
+| 12 | Automated tests | Done | unit / integration / e2e (LLM) / performance / security |
+| 13 | Benchmarks | Done | `benchmarks/`, raw results in `results/` |
+| 14 | Optimization & retest | Done | see `docs/EXPERIMENTS.md` |
+| 15 | Documentation | Done | `docs/` |
+| 16 | Acceptance validation | Done | `scripts/acceptance.py` |
+| 17 | Handover | Done | README + final report |
+
+## Acceptance (scripts/acceptance.py)
+15 PASS, 2 FAIL: CPU-only retrieval latency (p95 556 ms) and end-to-end answer latency (p50 1.9 s).
+See `results/acceptance/ACCEPTANCE.md`.
 
 ## Known open items
 - License not selected (author decision required) — see README "License".
+- Generation timeouts at 10-20 concurrent users under memory pressure: observed, not root-caused.
+- Project folder renamed to `querydoc-ai.nosync` (symlink `querydoc-ai`) so iCloud stops evicting files; it is no longer iCloud-backed — push to a git remote.
 - OCR is an optional extension (`QUERYDOC_ENABLE_OCR=true` + Tesseract); not exercised in tests.
 
 ## Notable engineering issues encountered

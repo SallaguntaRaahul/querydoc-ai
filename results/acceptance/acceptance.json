@@ -1,0 +1,124 @@
+{
+  "generated_utc": "2026-10-19T19:52:55+00:00",
+  "criteria": [
+    {
+      "requirement": "PDF ingestion",
+      "target": "Works for 100+ pages",
+      "status": "PASS",
+      "measured": "synthetic_100p.pdf: 100 pages in 1.8s, synthetic_200p.pdf: 200 pages in 3.5s, NIST.SP.800-37r2.pdf: 183 pages in 10.8s",
+      "evidence": "results/ingestion/results.json"
+    },
+    {
+      "requirement": "Multiple PDFs",
+      "target": "Functional",
+      "status": "PASS",
+      "measured": "test_multi_document_isolation_and_delete: passed",
+      "evidence": "results/tests/junit.xml"
+    },
+    {
+      "requirement": "Local embeddings",
+      "target": "Functional",
+      "status": "PASS",
+      "measured": "11 strategies benchmarked",
+      "evidence": "results/embeddings/results.json"
+    },
+    {
+      "requirement": "FAISS indexing",
+      "target": "Functional",
+      "status": "PASS",
+      "measured": "test_store_add_search_filter_delete: passed",
+      "evidence": "results/tests/junit.xml"
+    },
+    {
+      "requirement": "Persistent indexes",
+      "target": "Functional",
+      "status": "PASS",
+      "measured": "test_index_persists_across_restart: passed",
+      "evidence": "results/tests/junit.xml"
+    },
+    {
+      "requirement": "Local Hugging Face LLM",
+      "target": "Functional",
+      "status": "PASS",
+      "measured": "Qwen/Qwen2.5-0.5B-Instruct on mps; Qwen/Qwen2.5-1.5B-Instruct on mps",
+      "evidence": "results/generation/results.json"
+    },
+    {
+      "requirement": "Citation-grounded answers",
+      "target": "Tested",
+      "status": "PASS",
+      "measured": "test_supported_question_answered_with_valid_citation: passed",
+      "evidence": "results/tests/junit.xml"
+    },
+    {
+      "requirement": "Retrieval latency",
+      "target": "p95 < 300 ms on 100+ page docs (optimized pipeline, warm)",
+      "status": "PASS",
+      "measured": "worst p95 128 ms / p50 80 ms (nist_800-37r2_183p)",
+      "evidence": "results/retrieval_latency/results.json"
+    },
+    {
+      "requirement": "Retrieval latency, CPU-only reranker",
+      "target": "p95 < 300 ms on 100+ page docs",
+      "status": "FAIL",
+      "measured": "worst p95 556 ms (nist_800-37r2_183p)",
+      "evidence": "results/retrieval_latency_cpu/results.json"
+    },
+    {
+      "requirement": "End-to-end answer latency (default LLM)",
+      "target": "< 300 ms (stretch; not a stated target)",
+      "status": "FAIL",
+      "measured": "p50 1.9 s, p95 4.4 s",
+      "evidence": "results/generation/results.json"
+    },
+    {
+      "requirement": "Context relevance improvement",
+      "target": ">= 40% relative (nDCG@5, held-out test split)",
+      "status": "PASS",
+      "measured": "0.578 -> 0.831 = +43.8% (CI95 +17..+91%); all 63 questions +36.7%",
+      "evidence": "results/relevance/results.json"
+    },
+    {
+      "requirement": "Peak-memory reduction",
+      "target": ">= 35% peak RSS, batched streaming vs unbatched single pass",
+      "status": "PASS",
+      "measured": "78.5% vs single pass; 52.8% vs batch-256; -0.8% vs library default batch-32",
+      "evidence": "results/embeddings/results.json"
+    },
+    {
+      "requirement": "Concurrent generation",
+      "target": "info: bounded admission control",
+      "status": "PASS",
+      "measured": "0 errors up to 5 users; 10u: {'QueueFullError': 3, 'GenerationTimeoutError': 3}, 20u: {'QueueFullError': 23, 'GenerationTimeoutError': 4}",
+      "evidence": "results/concurrency/results.json"
+    },
+    {
+      "requirement": "Concurrent retrieval",
+      "target": "Tested at multiple loads",
+      "status": "PASS",
+      "measured": "1u: 12 rps p95 110 ms, 2u: 12 rps p95 198 ms, 5u: 12 rps p95 516 ms, 10u: 12 rps p95 935 ms, 20u: 13 rps p95 1711 ms",
+      "evidence": "results/concurrency/results.json"
+    },
+    {
+      "requirement": "Streamlit application",
+      "target": "Launches successfully",
+      "status": "PASS",
+      "measured": "healthy in 1.03 s",
+      "evidence": "results/streamlit/launch.json"
+    },
+    {
+      "requirement": "Automated tests",
+      "target": "Pass",
+      "status": "PASS",
+      "measured": "97 tests, 0 failures, 0 errors, 0 skipped",
+      "evidence": "results/tests/junit.xml"
+    },
+    {
+      "requirement": "Documentation",
+      "target": "Complete",
+      "status": "PASS",
+      "measured": "all required documents present",
+      "evidence": "docs/"
+    }
+  ]
+}

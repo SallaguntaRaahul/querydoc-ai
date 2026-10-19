@@ -109,6 +109,7 @@ sequenceDiagram
     else
         S->>G: acquire slot (bounded queue, timeout)
         S->>M: prompt = rules + <source id=S1..Sk> + question
+        Note over S,M: instruction-like sentences in sources are redacted first
         M-->>S: answer text with [S#] tags (+ TTFT, tokens/s)
         S->>V: verify tags ⊆ prompt sources ∩ allowed docs ∩ index; support per sentence
         V-->>S: cleaned answer, citations (file, pages, chunk, excerpt), status
@@ -153,9 +154,9 @@ No pickle files are written or read anywhere.
 |---|---|---|---|---|
 | all-MiniLM-L6-v2 (embedder) | ~90 MB | at service start | CPU (configurable) | process |
 | ms-marco-MiniLM-L-6-v2 (reranker) | ~90 MB | first reranked query | `auto` (MPS/CUDA/CPU) | process |
-| Qwen2.5-0.5B-Instruct (LLM) | ~1 GB fp16 | first generated answer | `auto` | process |
+| Qwen2.5-1.5B-Instruct (LLM, default) | ~3 GB fp16 | first generated answer | `auto` | process |
 
-`QueryDocService` owns all three; Streamlit keeps one service per server process via
+All three load **local-first** (`config.load_local_first`: `local_files_only=True`, network only if not cached — a stalled Hub request once blocked app start-up). `QueryDocService` owns all three; Streamlit keeps one service per server process via
 `@st.cache_resource`, so no rerun or new browser session reloads a model. If the
 LLM fails to load (missing weights offline, out of memory), the failure is
 remembered and every answer degrades to retrieval-only with a visible note.
@@ -180,7 +181,8 @@ flowchart LR
 
 - **Index:** writer-preferring readers–writer lock. FAISS searches run in parallel; an add/delete waits for in-flight searches and blocks new ones briefly. Saves write a temp directory then `os.replace`, so a crash mid-save never corrupts the live index.
 - **Tokenizers/models:** HF fast tokenizers raise "Already borrowed" if used from two threads at once, so each `encode`/`predict` call holds a short lock. Native kernels release the GIL.
-- **Generation:** one model instance runs one `generate()` at a time. The gate bounds waiting requests so memory and latency stay bounded; overflow fails fast.
+- **Generation:** one model instance runs one `generate()` at a time. A generating request takes its `GenerationGate` slot *before* retrieval, so the queue bound (8) and timeout (120 s) cover the whole request; overflow fails fast with `QueueFullError`. Retrieval-only requests are not gated.
+- **Shared GPU:** Apple MPS aborts the process when two threads submit work concurrently (observed: reranker + LLM). `querydoc/devices.py::device_lock` is one re-entrant lock per accelerator that the embedder, reranker and LLM all take around forward passes. Consequence: during a generation, reranking for other requests waits.
 - **Ingestion vs queries:** embedding (the slow part) runs outside any lock; only the in-memory add and the save are exclusive.
 
 ## 8. Deployment shape and its limits

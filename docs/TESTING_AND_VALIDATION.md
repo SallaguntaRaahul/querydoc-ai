@@ -15,7 +15,7 @@ uv pip install -e ".[dev]"
 python scripts/download_corpus.py        # NIST evaluation PDFs, checksum-verified
 ```
 Models download on first use into `~/.cache/huggingface` (MiniLM ~90 MB, cross-encoder ~90 MB,
-Qwen2.5-0.5B-Instruct ~1 GB). After that, `HF_HUB_OFFLINE=1` works.
+Qwen2.5-1.5B-Instruct ~3 GB; optionally 0.5B ~1 GB). Cached models then load without network access (local-first loading).
 
 ## 2. Test suite layout
 
@@ -27,8 +27,10 @@ Qwen2.5-0.5B-Instruct ~1 GB). After that, `HF_HUB_OFFLINE=1` works.
 | `tests/unit/test_retrieval_citations.py` | unit | tokenizer; dedup; MMR; evidence-span location & coverage; IR metrics; relative improvement; prompt delimiter defusing & token budget; citation verification (valid, invalid tag, uncited claim, unsupported claim, no citations, tag-only answer, insufficient evidence, other-document citation, stale chunk); generation gate queue-full and timeout |
 | `tests/unit/test_security.py` | security | no pickle/eval anywhere in `src/`; `allow_pickle` only ever `False`; pickled object arrays in the cache are refused; filenames never contain path components; oversized upload rejected before parsing; tampered manifest rejected; injected text cannot escape `<source>` or reach the system role; citations cannot reference unselected documents |
 | `tests/integration/test_service.py` | integration | ingest → retrieve finds every planted fact on the right page (120-page PDF, production config); duplicate upload rejected; invalid upload leaves index untouched; scanned-only PDF reports OCR disabled; multi-document filter isolation and delete; `document_path` traversal rejected; index survives restart; off-topic question declined without the LLM; retrieval-only fallback when the LLM is unavailable; 60 concurrent queries during 3 concurrent ingests, persisted index still consistent |
-| `tests/e2e/test_generation.py` | end-to-end (real Qwen model) | supported question answered with the right code and a valid citation to the right page; citations ⊆ retrieved chunks; unsupported question declined; instruction injected into a PDF page is not obeyed; document filter restricts citations |
+| `tests/e2e/test_generation.py` | end-to-end (real Qwen model) | concurrent answers do not crash the shared GPU; supported question answered with the right code and a valid citation to the right page; citations ⊆ retrieved chunks; unsupported question declined; instruction injected into a PDF page is not obeyed; document filter restricts citations |
 | `tests/performance/test_latency_smoke.py` | performance guard | warm retrieval p95 < 300 ms on a 120-page PDF with hybrid + rerank |
+
+Total: **97 tests** (latest run: 97 passed, `results/tests/junit.xml`).
 
 Markers: `slow` (model-heavy), `llm` (needs the cached generation model; auto-skipped otherwise).
 

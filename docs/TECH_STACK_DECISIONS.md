@@ -17,7 +17,7 @@ the ones installed and measured (`results/*/results.json → environment.package
 | Vector index | FAISS `IndexIDMap2(IndexFlatIP)` (HNSW optional) | Chroma, Qdrant, pgvector, Pinecone, Milvus, Weaviate | In-process, zero ops, exact search is < 1 ms at this scale, supports ID removal + ID-selector filtering | > ~1 M vectors per node, multi-node, rich metadata filters, multi-tenant ACLs |
 | Lexical retrieval | `rank-bm25` (Okapi BM25) fused by RRF | Elasticsearch/OpenSearch, Tantivy, SQLite FTS5 | Pure Python, no service; corpus is a few thousand chunks | Corpus grows beyond ~100 k chunks (BM25Okapi rescans all docs per query) |
 | Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` | bge-reranker-base, Cohere Rerank, ColBERT | Small (22 M), strong MS MARCO reranker, local | Latency budget allows a larger reranker or domain shift hurts quality |
-| Generation | HF Transformers + `Qwen/Qwen2.5-0.5B-Instruct` (Apache-2.0) | Qwen2.5-1.5B/3B, Llama-3.2-1B/3B (gated license), Phi-3.5-mini, llama.cpp/GGUF, Ollama, vLLM | Ungated, permissive license, runs on MPS/CPU in ~1 GB, chat template supported | Answer quality matters more than latency, or a GPU server is available (vLLM) |
+| Generation | HF Transformers + `Qwen/Qwen2.5-1.5B-Instruct` (Apache-2.0; 0.5B as low-memory option) | Qwen2.5-3B, Llama-3.2-1B/3B (gated license), Phi-3.5-mini, llama.cpp/GGUF, Ollama, vLLM | Ungated, permissive license, measured 84% vs 48% answer accuracy over 0.5B at p50 1.9 s on MPS | Answer quality matters more than latency, or a GPU server is available (vLLM) |
 | Tensor runtime | PyTorch 2.x (CPU + Apple MPS) | ONNX Runtime, MLX, llama.cpp | Required by Transformers and SentenceTransformers; MPS gives free GPU on Apple silicon | Need int4/int8 quantized CPU inference (llama.cpp / ONNX) |
 | UI | Streamlit | FastAPI + React, Gradio, Chainlit | Fastest path to a usable, Python-only app with caching primitives (`st.cache_resource`) | Multi-user auth, custom UX or horizontal scaling is required |
 | Config | pydantic-settings | dynaconf, plain env vars | Typed, validated, `.env` support, `QUERYDOC_` prefix | — |
@@ -87,10 +87,11 @@ the ones installed and measured (`results/*/results.json → environment.package
 - **Where:** `retrieval/retriever.py::BM25Index` — rebuilt lazily when the store's `version` changes.
 - **Limitations:** scores every document per query (O(N)); fine for thousands of chunks, not for millions.
 
-## Hugging Face Transformers + Qwen2.5-0.5B-Instruct
-- **What:** Transformers loads and runs open-weight models; Qwen2.5-0.5B-Instruct is a 494 M-parameter instruction-tuned decoder with a 32 k context window, Apache-2.0 license, ungated download.
+## Hugging Face Transformers + Qwen2.5-1.5B-Instruct
+- **What:** Transformers loads and runs open-weight models; Qwen2.5-1.5B-Instruct is a 1.5 B-parameter instruction-tuned decoder (32 k context), Apache-2.0, ungated; ~3 GB in fp16. Qwen2.5-0.5B-Instruct (494 M, ~1 GB) is supported as a low-memory option via `QUERYDOC_LLM_MODEL`.
 - **Where:** `src/querydoc/generation/llm.py::LocalLLM` — loaded **once** (cached by the service and by `st.cache_resource`), `float16` on MPS/CUDA and `float32` on CPU, greedy decoding by default, `TextIteratorStreamer` for time-to-first-token, a lock serialising `generate()` (one model instance is not safe for concurrent generation), out-of-memory errors mapped to `GenerationError`, load failures mapped to `GenerationUnavailableError` → retrieval-only mode.
-- **Model choice:** 0.5B and 1.5B were both evaluated (`results/generation`). See `docs/PERFORMANCE_REPORT.md` for the measured quality/latency trade-off that decided the default.
+- **Model choice (measured, `results/generation`):** on 31 held-out questions 1.5B reached 84% keyword accuracy vs 48% for 0.5B and tagged its own citations 65% vs 6% of the time, at p50 1.9 s vs 0.5 s end to end. 0.5B often answered with a bare `[S2]`. Quality won; 0.5B remains available.
+- **Loading:** local-first (`config.load_local_first`): `local_files_only=True` first, network only if the model is not cached.
 - **Alternatives:** Llama-3.2-1B/3B (gated, Llama community license), Phi-3.5-mini (3.8 B, slower), llama.cpp/Ollama with GGUF int4 (faster CPU inference, separate runtime), vLLM (GPU servers only).
 - **Revisit:** for production answer quality use ≥ 3 B parameters with 4-bit quantisation (llama.cpp/MLX) or a GPU server.
 

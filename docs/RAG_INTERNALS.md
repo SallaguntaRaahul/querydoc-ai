@@ -61,7 +61,7 @@ Only cleaned text per page is retained; the raw PDF bytes are written once to `d
 | Strategy | How | Strength | Weakness |
 |---|---|---|---|
 | `fixed` | Character windows of `size` stepping by `size − overlap` | Simple, predictable | Cuts mid-word and mid-sentence |
-| `recursive` (default) | LangChain `RecursiveCharacterTextSplitter`, separators `\n\n`, `\n`, `. `, `? `, `! `, `; `, `, `, ` `, `""` | Prefers paragraph, then line, then sentence boundaries | Paragraph detection depends on PDF layout |
+| `recursive` (default) | LangChain `RecursiveCharacterTextSplitter`, separators `\n\n`, `. `, `? `, `! `, `\n`, `; `, `, `, ` `, `""` (sentence ends deliberately rank above single line breaks — PDF line wraps are not structure) | Prefers paragraph, then line, then sentence boundaries | Paragraph detection depends on PDF layout |
 | `sentence` | Regex sentence segmentation, pack whole sentences up to `size`, overlap = trailing whole sentences | Never splits a sentence | Regex misfires on abbreviations ("e.g.", "Sec. 3") |
 
 **Chunk size trade-off.** Small chunks give precise vectors (high precision) but split evidence across chunks and fill the top-k with fragments (recall suffers); large chunks keep context together but dilute the vector and get truncated by the embedder. On this corpus the measured optimum for dense retrieval was ~1,000 characters; 256–384-character chunks lost 7–10 nDCG points (`docs/EXPERIMENTS.md`).
@@ -148,25 +148,28 @@ With 20% overlap, adjacent chunks share text; both may rank highly and waste two
 - Greedy decoding (temperature 0) by default for reproducibility; sampling configurable.
 - Autoregressive generation: one forward pass per output token, reusing the KV-cache. Latency ≈ prefill(prompt tokens) + n_tokens × per-token decode time, so output length dominates.
 - `TextIteratorStreamer` runs `generate()` in a worker thread and yields text pieces; this gives time-to-first-token and lets a UI stream.
-- A lock serialises generation on the single model instance; the service's `GenerationGate` bounds how many requests may wait.
+- A lock serialises generation on the single model instance, and a shared per-device lock (`devices.py`) prevents the reranker and LLM from using the Apple GPU at the same time (that combination crashed the process).
+- The service's `GenerationGate` is taken before retrieval for generating requests and bounds how many may wait.
 
-## 14. Hallucination prevention — layered
+## 14. Hallucination and prompt-injection defences — layered
 
 1. **Don't ask the model when evidence is weak.** If the best dense cosine similarity among candidates is below `min_relevance_score` (0.25), the service returns "insufficient evidence" without calling the LLM.
 2. **Instructions** to answer only from sources and to emit `INSUFFICIENT_EVIDENCE`.
 3. **Citation verification** after generation (§15).
-4. **Status shown to the user:** verified / partially verified / could not verify / insufficient evidence — never a silent pass-through.
+4. **Injection redaction.** Before sources enter the prompt, sentences that look like instructions to an AI assistant ("ignore previous instructions", "reply only with the word…", "you are now…") are replaced with a `[redacted…]` marker and the response carries a warning (`prompts.sanitize_source_text`). Added after the 1.5B model *obeyed* an injected instruction in an end-to-end test. Heuristic: paraphrased or obfuscated injections can pass.
+5. **Status shown to the user:** verified / partially verified / could not verify / insufficient evidence — never a silent pass-through.
 
 ## 15. Citation verification
 
 `citations/citations.py::verify_answer`
 1. Parse `[S1]`, `[S1, S3]`, `[S2][S4]`.
-2. A tag is valid only if it maps to a source that was actually in the prompt, belongs to an allowed (selected) document, and — via `chunk_lookup` — still exists in the index with identical text. Invalid tags are stripped from the answer and reported.
+2. Tags are parsed in the forms `[S1]`, `[S1, S3]`, `[S2][S4]`, `[Source S2]` (the 1.5B model's habit); bare numbers like `[26]` are rejected. A tag is valid only if it maps to a source that was actually in the prompt, belongs to an allowed (selected) document, and — via `chunk_lookup` — still exists in the index with identical text. Invalid tags are stripped from the answer and reported.
 3. Split the answer into sentences (a fragment containing only tags attaches to the previous sentence). For each sentence, **support** = fraction of its content words found in the cited chunk(s). A claim is supported if it has a valid tag and support ≥ 0.5.
-4. Status: all claims supported → `verified`; some → `partially_verified`; no valid citations → `unverified`.
-5. Each citation carries file, page range, chunk id, retrieval score, and the chunk sentence with the highest word overlap as the supporting excerpt; the UI renders that page with the excerpt highlighted.
+4. **Post-hoc attribution:** a sentence with no tag is cited to the retrieved source with the highest support, if that support ≥ 0.5; such citations are labelled `attributed` (not `model`) and noted in the response. On the held-out test set this raised answers-with-citation from 65% model-tagged to 97% (1.5B).
+5. Status: all claims supported → `verified`; some → `partially_verified`; no valid citations → `unverified`.
+6. Each citation carries file, page range, chunk id, retrieval score, and the chunk sentence with the highest word overlap as the supporting excerpt; the UI renders that page with the excerpt highlighted.
 
-Limitation: lexical support is a heuristic. It catches invented numbers and unrelated claims, but a paraphrase with few shared words can be marked unsupported, and a negation flip ("SHALL" vs "SHALL NOT") can pass. An NLI entailment model would be the next step.
+Limitations: lexical support is a heuristic, and verification checks *grounding*, not *relevance* — in the UI test, a question about the salt length got a fully grounded answer about the optional secret salt instead (marked verified). If the model tags the wrong source, the citation is marked weakly supported rather than re-pointed to the right chunk. Further: It catches invented numbers and unrelated claims, but a paraphrase with few shared words can be marked unsupported, and a negation flip ("SHALL" vs "SHALL NOT") can pass. An NLI entailment model would be the next step.
 
 ## 16. Retrieval evaluation
 
@@ -189,7 +192,7 @@ where IDCG assumes min(k, #relevant chunks existing in the index) relevant resul
 ## 18. Concurrency model
 
 - Retrieval: thread-safe and lock-light (RW lock on the index; short locks around tokenizer calls because HF fast tokenizers are not re-entrant across threads). PyTorch/FAISS release the GIL in native code.
-- Generation: `GenerationGate(max_active=1, max_queue=8, timeout=120 s)` — at most one active generation, at most eight waiting; extra requests fail fast with `QueueFullError` instead of piling up and exhausting memory.
+- Generation: `GenerationGate(max_active=1, max_queue=8, timeout=120 s)`, acquired at the start of a generating request — at most one active generation, at most eight waiting; extra requests fail fast with `QueueFullError` instead of piling up and exhausting memory.
 - Ingestion: embedding runs outside the index lock; only the `add` + save is exclusive, so queries continue during uploads.
 
 ## 19. Memory optimisation

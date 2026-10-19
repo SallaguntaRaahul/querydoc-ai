@@ -108,8 +108,10 @@ def latency_chart(lat: dict) -> None:
          [S1, S3, S2], fmt="{:.0f}", label_series={"optimized (hybrid+rerank) p95"})
     ax.axhline(300, color=TARGET, linestyle="--", linewidth=1)
     ax.text(len(datasets) - 0.5, 305, "300 ms target", fontsize=7, color=TARGET, ha="right", va="bottom")
-    style(ax, "Warm retrieval latency by document size (excludes LLM generation)", "milliseconds")
-    ax.legend(frameon=False, fontsize=8, loc="upper left")
+    style(ax, f"Warm retrieval latency by document size, reranker on {lat.get('reranker_device', 'cpu').upper()} "
+              "(excludes LLM generation)", "milliseconds")
+    ax.set_ylim(0, 420)
+    ax.legend(frameon=False, fontsize=8, loc="upper left", ncol=3)
     f.tight_layout()
     f.savefig(OUT / "retrieval_latency.png")
     plt.close(f)
