@@ -2,80 +2,72 @@
 
 **Project:** QueryDoc AI · **Author:** Raahul Sallagunta
 
-This guide explains what is tested, how to reproduce every result, and how the
-acceptance verdicts are derived. Latest executed results: `results/tests/junit.xml`
-(test suite) and `results/acceptance/ACCEPTANCE.md` (acceptance table).
-
-## 1. Setup
+Four layers of automated tests plus benchmark evidence. One command runs everything:
 
 ```bash
-uv venv -p 3.12 .venv.nosync && ln -s .venv.nosync .venv   # .nosync: see TROUBLESHOOTING #2
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-python scripts/download_corpus.py        # NIST evaluation PDFs, checksum-verified
+./scripts/test_all.sh          # lint, types, pytest, build, Vitest, Playwright → results/tests/*.xml
+python scripts/check_app.py     # production-style launch check → results/app/launch.json
+python scripts/acceptance.py    # PASS/FAIL table → results/acceptance/ACCEPTANCE.md
 ```
-Models download on first use into `~/.cache/huggingface` (MiniLM ~90 MB, cross-encoder ~90 MB,
-Qwen2.5-1.5B-Instruct ~3 GB; optionally 0.5B ~1 GB). Cached models then load without network access (local-first loading).
 
-## 2. Test suite layout
+## 1. Test inventory
 
-| Folder | Kind | What it proves |
-|---|---|---|
-| `tests/unit/test_ingestion.py` | unit | text cleaning & soft-wrap reflow; filename sanitisation (traversal, control chars); rejects non-PDF, empty, corrupt, oversized, too-many-pages, password-protected; blank & image-only page detection; 120-page extraction keeps page numbers; stable content-hash ids; rotated watermark text excluded |
-| `tests/unit/test_chunking.py` | unit | all three strategies respect size and exact offsets; page ranges incl. cross-page chunks; empty pages keep numbering; stable unique ids; overlap; min-length filter; invalid configs; LangChain `Document` round trip |
-| `tests/unit/test_embeddings_and_store.py` | unit | normalised float32 vectors; batched == unbatched; duplicate texts encoded once; cache hit rate; cache persistence/model mismatch/corruption; FAISS flat **and** HNSW add/search/filter/delete; dimension check; persistence round trip; model mismatch, tampered files and garbage manifests rejected |
-| `tests/unit/test_retrieval_citations.py` | unit | tokenizer; dedup; MMR; evidence-span location & coverage; IR metrics; relative improvement; prompt delimiter defusing & token budget; citation verification (valid, invalid tag, uncited claim, unsupported claim, no citations, tag-only answer, insufficient evidence, other-document citation, stale chunk); generation gate queue-full and timeout |
-| `tests/unit/test_security.py` | security | no pickle/eval anywhere in `src/`; `allow_pickle` only ever `False`; pickled object arrays in the cache are refused; filenames never contain path components; oversized upload rejected before parsing; tampered manifest rejected; injected text cannot escape `<source>` or reach the system role; citations cannot reference unselected documents |
-| `tests/integration/test_service.py` | integration | ingest → retrieve finds every planted fact on the right page (120-page PDF, production config); duplicate upload rejected; invalid upload leaves index untouched; scanned-only PDF reports OCR disabled; multi-document filter isolation and delete; `document_path` traversal rejected; index survives restart; off-topic question declined without the LLM; retrieval-only fallback when the LLM is unavailable; 60 concurrent queries during 3 concurrent ingests, persisted index still consistent |
-| `tests/e2e/test_generation.py` | end-to-end (real Qwen model) | concurrent answers do not crash the shared GPU; supported question answered with the right code and a valid citation to the right page; citations ⊆ retrieved chunks; unsupported question declined; instruction injected into a PDF page is not obeyed; document filter restricts citations |
-| `tests/performance/test_latency_smoke.py` | performance guard | warm retrieval p95 < 300 ms on a 120-page PDF with hybrid + rerank |
+| Layer | Tool | Where | Count | What it proves |
+|---|---|---|---|---|
+| Engine unit | pytest | `backend/tests/unit/` | 80 | ingestion validation and extraction (rotated text, soft-wrap reflow, scanned/blank pages, encryption, limits), chunk offsets/page ranges, embeddings and cache, FAISS add/search/filter/delete/persist/tamper, retrieval helpers, citation verification and attribution, prompt delimiting and injection redaction, admission gate, no-pickle AST check |
+| Engine integration | pytest | `backend/tests/integration/` | 11 | ingest → retrieve on a 120-page PDF, duplicates, invalid uploads, multi-document isolation, delete, restart persistence, insufficient-evidence gate, retrieval-only fallback, queries during ingestion, bounded admission |
+| Engine e2e (real Qwen 1.5B) | pytest `-m llm` | `backend/tests/e2e/` | 5 | supported answer with a valid citation on the right page, unsupported question declined, injected instruction not obeyed, document filter, concurrent answers on the shared GPU |
+| Performance guard | pytest | `backend/tests/performance/` | 1 | warm retrieval p95 < 300 ms on a 120-page PDF |
+| **API** | pytest + HTTPX `TestClient` | `backend/tests/api/` | 22 | health/OpenAPI; upload 202 → background ready; duplicate 409, non-PDF 422, wrong type 415, oversize 413, multi-file partial errors; failed (scanned) ingestion reported; path traversal / bad ids 404; delete removes vectors and file; re-index applies new chunking; blocking chat with verified citation, conversation CRUD and feedback; SSE event order and persistence; follow-up and regenerate; scope isolation; validation errors; off-topic declined without calling the LLM; prompt injection flagged; settings validation, presets, unavailable device 409, embedding lock 409, persistence across restart; analytics runtime vs benchmark; restart persistence of documents and conversations; 6 concurrent chats; queue-full 429; client disconnect → `cancelled` |
+| **Frontend unit/component** | Vitest + React Testing Library + vitest-axe | `frontend/src/**/*.test.ts(x)` | 22 | SSE parser (partial chunks, keep-alives, CRLF), formatters, PDF text helpers (HTML escaping, honest passage matching), upload validation, settings Zod schema, citation linkification, assistant message chips/pills/copy, dashboard real counts and backend-offline alert, library filter and delete via API, settings validation and PUT, theme toggle persistence, **axe accessibility checks** |
+| **End-to-end** | Playwright (Chromium) | `frontend/e2e/app.spec.ts` | 10 | real stack, real models: onboarding empty states; invalid upload error; upload of two real NIST PDFs incl. **183 pages** with live progress; duplicate rejected; streamed answer with verified citations; evidence panel; **citation opens the cited PDF page** with highlight status; follow-up; reload persistence; reopen from history; **stop** mid-stream; viewer search; settings validation and persistence; analytics; theme; delete document and index entries |
+| **Visual QA** | Playwright | `frontend/e2e/visual.spec.ts` | 12 | 30+ screenshots: overview, library, chat, analytics, settings at desktop 1440×900, tablet 834×1112, mobile 390×844 in dark and light; citation + PDF side by side; viewer search; long titles truncate; empty / loading / backend-offline states; long answer with 8 citations; focus visibility; reduced motion; **no horizontal overflow** asserted on every page |
 
-Total: **97 tests** (latest run: 97 passed, `results/tests/junit.xml`).
+The API tests run the real ingestion pipeline, embeddings, FAISS, SQLite and background worker; only the generator is a deterministic stub (it quotes the top passage and cites it), so the HTTP contract is tested quickly and repeatably. The real model is exercised by the engine e2e tests, the Playwright suite and `benchmarks/benchmark_api.py`.
 
-Markers: `slow` (model-heavy), `llm` (needs the cached generation model; auto-skipped otherwise).
-
-## 3. Commands
+## 2. Commands
 
 ```bash
-pytest -q                                          # everything (LLM tests skip if model not cached)
-pytest -m "not llm"                                # what CI runs
-pytest --junitxml=results/tests/junit.xml          # write evidence for the acceptance script
-ruff check src app benchmarks scripts tests
-mypy
-python scripts/check_streamlit.py                  # headless launch + health + page served
-python benchmarks/run_all_benchmarks.py            # all benchmarks + charts (~45-60 min)
-python scripts/acceptance.py                       # PASS/FAIL table → results/acceptance/
+# backend (from backend/)
+pytest                                   # all backend tests (LLM tests skip if the model is not cached)
+pytest tests/api -q                      # API only (~20 s)
+ruff check app querydoc tests && mypy
+
+# frontend (from frontend/, Node 22 — see frontend/.nvmrc)
+npx vitest run
+npx tsc -p tsconfig.app.json --noEmit && npm run build
+npx playwright install chromium          # once
+npx playwright test                      # starts its own server on :8300 with a fresh workspace
+npx playwright show-report
 ```
 
-## 4. How acceptance verdicts are derived
+Playwright's server (`frontend/e2e/start-server.sh`) builds the frontend, wipes `frontend/e2e/.data` and starts FastAPI with real models, so every run starts from an empty library.
 
-`scripts/acceptance.py` reads evidence files only — it never re-labels a result:
+## 3. What the acceptance script checks
 
-| Criterion | Evidence | PASS rule |
-|---|---|---|
-| PDF ingestion 100+ pages | `results/ingestion/results.json` | a document with ≥ 100 pages ingested |
-| Multiple PDFs, FAISS, persistence, citations | `results/tests/junit.xml` | the named test case passed (skipped ⇒ BLOCKED, missing ⇒ NOT TESTED) |
-| Local HF LLM | `results/generation/results.json` | generated answers recorded |
-| Retrieval latency | `results/retrieval_latency/results.json` | optimized pipeline p95 < 300 ms on **every** dataset ≥ 100 pages |
-| Context relevance | `results/relevance/results.json` | nDCG@5 relative improvement ≥ 40% on the **held-out test split** |
-| Peak memory | `results/embeddings/results.json` | peak RSS reduction ≥ 35% (batched streaming vs unbatched single pass); the stricter batch-256 comparison is shown alongside |
-| Concurrent retrieval | `results/concurrency/results.json` | ≥ 3 load levels and 0 errors |
-| Streamlit | `results/streamlit/launch.json` | health endpoint `ok` and page served |
-| Tests | `results/tests/junit.xml` | 0 failures, 0 errors |
-| Documentation | files in `docs/` | all required files present |
+`scripts/acceptance.py` reads only evidence files:
 
-Functional tests never count as benchmark passes, and a missed target is reported as FAIL.
+| Definition-of-done item | Evidence |
+|---|---|
+| 1–2 frontend builds; backend starts (health, SPA, client routes, OpenAPI) | `results/app/launch.json` |
+| 3–10 upload, indexing, retrieval, local LLM answer, citation navigation, conversation persistence, settings, analytics | named Playwright cases in `results/tests/playwright-junit.xml` |
+| 11 automated tests | `results/tests/junit.xml` (pytest), `results/tests/vitest-junit.xml` |
+| 12 end-to-end tests | Playwright functional cases |
+| 13 visual inspection | Playwright visual cases and screenshot count in `docs/images/ui/` |
+| 14 benchmarks recorded | all eight `results/*/results.json` |
+| 15 documentation | required files present |
+| 16 resume claims | verdicts in `docs/RESUME_CLAIM_VALIDATION.md` |
 
-## 5. Manual UI verification
+Performance targets (relevance, latency GPU/CPU, memory, concurrency, generation, API end-to-end) are evaluated separately; a missed target is reported as FAIL.
 
-The app was launched and exercised in a browser (see `docs/images/ui_*.png`, captured from the
-running app): upload, chat with citations, "Open page" rendering with the excerpt highlighted,
-and the performance tab.
+## 4. Manual and visual inspection performed
 
-## 6. Known gaps in validation
+- The running app was used in the in-app browser (mobile width): streamed answer, citation → page 79 with highlight, analytics, settings. Fixed as a result: duplicate close buttons in the mobile drawer, selected toggles indistinguishable in dark mode, chunking-sweep labels dropped, embedding-model select overflowing its column, "% points" wording.
+- Playwright screenshots at every viewport and theme were reviewed. Fixed as a result: evidence cards and sidebar titles clipped by Radix ScrollArea (`display: table`), charts captured mid-animation, isolated words highlighted on cited pages.
 
-- Evaluation labels were authored with AI assistance during development and not reviewed by a second annotator.
-- 63 questions over 4 documents is a small benchmark; confidence intervals are reported for that reason.
-- Generation quality is scored with keyword matching, not human judgment.
-- OCR, CUDA, and Linux/Windows were not exercised (CI covers Linux without the LLM).
-- The latency/memory numbers come from one laptop under real background load (swap in use); see each result's `environment` block.
+## 5. Known gaps
+
+- Relevance labels were AI-assisted (one annotator); 63 questions.
+- Generation quality is keyword-scored; small models can give grounded but off-target answers.
+- OCR, CUDA, Linux/Windows and Safari/Firefox were not exercised (Playwright runs Chromium only).
+- All runs used one laptop under heavy memory pressure (7–13 GB swap in use).

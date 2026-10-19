@@ -52,7 +52,6 @@ def worker(strategy: str, doc_name: str, chunk_size: int, chunk_overlap: int) ->
     import numpy as np
     import torch
     from common import PeakRSSSampler
-
     from querydoc.chunking.chunkers import ChunkingConfig, chunk_document
     from querydoc.embeddings.embedder import Embedder
     from querydoc.ingestion.pdf_loader import extract_pdf

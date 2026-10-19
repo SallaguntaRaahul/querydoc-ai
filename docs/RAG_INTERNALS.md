@@ -151,6 +151,12 @@ With 20% overlap, adjacent chunks share text; both may rank highly and waste two
 - A lock serialises generation on the single model instance, and a shared per-device lock (`devices.py`) prevents the reranker and LLM from using the Apple GPU at the same time (that combination crashed the process).
 - The service's `GenerationGate` is taken before retrieval for generating requests and bounds how many may wait.
 
+## 13b. Streaming, cancellation and follow-ups (full-stack)
+
+- `QueryDocService.answer_stream` yields `("retrieval", result)`, then `("token", text)` per generated fragment, then `("final", response)`; the blocking `answer()` consumes the same generator, so there is one code path.
+- `LocalLLM.iter_generate(stop_event=...)` adds a Transformers `StoppingCriteria` that checks a `threading.Event` at every step; the API sets it when the client disconnects, so cancelled requests stop using the GPU within one token.
+- Follow-up questions: the last generated (question, answer) turns are passed as `history`. Retrieval uses the previous question plus the new one (so "what about AAL2?" retrieves the right section); the prompt includes the earlier turns, marked as context only — facts must still come from the sources. Verified in the API (follow-up answered "MAP" from "Which of those does most users start with?").
+
 ## 14. Hallucination and prompt-injection defences — layered
 
 1. **Don't ask the model when evidence is weak.** If the best dense cosine similarity among candidates is below `min_relevance_score` (0.25), the service returns "insufficient evidence" without calling the LLM.

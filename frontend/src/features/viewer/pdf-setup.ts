@@ -59,7 +59,7 @@ export function passageItemMatcher(pageItems: string[], passage: string): { foun
     matches: (s: string) => {
       if (!found) return false
       const t = normalizeText(s)
-      if (t.length < 8) return false
+      if (t.length < 20) return false // ignore isolated words (links, labels) that merely occur in the passage
       if (p.includes(t)) return true
       // Lines that start or end inside the passage (the passage begins/ends mid-line).
       return t.length >= 24 && (p.includes(t.slice(0, 20)) || p.includes(t.slice(-20)))

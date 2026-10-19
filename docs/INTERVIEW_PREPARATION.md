@@ -10,7 +10,7 @@ from `results/` (see `docs/PERFORMANCE_REPORT.md`).
 ## 1. Project explanations
 
 ### 30-second version
-"QueryDoc AI is a local PDF question-answering system. You upload PDFs, it extracts text with PyMuPDF, chunks it with page tracking, embeds the chunks with a MiniLM SentenceTransformer into a FAISS index, and answers questions with a Qwen2.5 model running on the laptop. Every answer cites the exact pages, and a verifier checks that each cited passage actually supports the sentence. On a 63-question benchmark I built over four NIST standards, hybrid search plus cross-encoder reranking improved nDCG@5 by 44% on held-out questions, and warm retrieval stays under 130 ms at p95 on 180-page documents."
+"QueryDoc AI is a local PDF question-answering app — React frontend, FastAPI backend. You upload PDFs, it extracts text with PyMuPDF, chunks it with page tracking, embeds the chunks with a MiniLM SentenceTransformer into a FAISS index, and streams answers from a Qwen2.5 model running on the laptop. Every answer cites the exact pages — click a citation and the PDF opens at that page with the passage highlighted — and a verifier checks that each cited passage actually supports the sentence. On a 63-question benchmark I built over four NIST standards, hybrid search plus cross-encoder reranking improved nDCG@5 by 44% on held-out questions, and warm retrieval stays under 130 ms at p95 on 180-page documents."
 
 ### 2-minute version
 "The goal was answers you can check. Long PDFs don't fit in an LLM's context, and small local models hallucinate, so I built a retrieval pipeline with verification around a local model.
@@ -24,7 +24,7 @@ Generation: Qwen2.5-1.5B on the Apple GPU gets numbered, delimited sources and s
 I measured everything against pre-registered definitions: retrieval quality on held-out questions, p50/p95 latency, peak memory in fresh processes, and concurrent load. The benchmarks also found real bugs, like a Metal crash when two threads used the GPU at once and a prompt injection the model obeyed. I fixed both and added regression tests."
 
 ### 5-minute architecture walkthrough (whiteboard order)
-1. **Draw the two flows**: ingestion (left to right) and query (left to right below it), one `QueryDocService` in the middle owning all models. Streamlit caches that service per process.
+1. **Draw the stack**: React SPA → FastAPI (REST + SSE) → `EngineManager` → `QueryDocService`, plus SQLite for app state and the FAISS files for vectors. Then the two flows: ingestion (background worker) and query (SSE stream).
 2. **Ingestion**: validation (size, magic bytes, encryption, page limit), SHA-256 → doc id → duplicate detection; per-page extraction with blank/scanned detection; cleaning; chunking with page offsets; batched embedding with a content-hash cache; FAISS add under a write lock; atomic save with checksummed manifest.
 3. **Storage**: FAISS binary + JSONL metadata + manifest (model name, dim, counts, SHA-256), the original PDF stored by doc id for the page viewer, JSON registry. No pickle anywhere.
 4. **Query**: embed (5 ms) → FAISS flat search with an ID selector for document filtering (0.2 ms) → BM25 + RRF (2 ms) → dedup (7 ms) → cross-encoder on top 20 (71 ms on GPU) → top 5.
@@ -133,8 +133,8 @@ The direction is solid: all CIs exclude zero. The size isn't precise: with 31 te
 **Q30. Why Qwen2.5-1.5B and not 0.5B?**
 Measured on 31 held-out questions: 84% vs 48% keyword accuracy; it tagged its own citations 65% vs 6% of the time, and 71% vs 42% of answers cited the gold evidence. The 0.5B model often output just "[S2]". 1.5B is slower (p50 1.9 s vs 0.5 s) but quality won. Both are Apache-2.0 and ungated.
 
-**Q31. How do you avoid reloading the model on every Streamlit rerun?**
-The service (embedder, reranker, index, LLM) is created inside an `@st.cache_resource` function, giving one instance per server process. Per-user state is in `st.session_state`. The LLM loads lazily on the first generated answer.
+**Q31. How do you avoid reloading models per request?**
+The FastAPI lifespan builds one `EngineManager` per process, which owns the embedder, reranker, FAISS index and LLM. Requests borrow it; the LLM and reranker warm up in a background thread at startup (or load lazily). Changing the model in Settings only resets that model, and in-flight generations keep their reference. (In the Streamlit phase the same idea used `@st.cache_resource`.)
 
 **Q32. How do you measure time to first token?**
 Generation runs in a worker thread with `TextIteratorStreamer`; the consumer records `perf_counter` at the first non-empty piece. Measured TTFT p50 0.96 s for 1.5B on MPS, about 18 tokens/s.
@@ -188,8 +188,8 @@ Index built, one cold query reported separately, 10 warm-ups, then 200 timed que
 Rerank fewer candidates (10) or shorter passages, use an ONNX/int8 cross-encoder, cache query results, or skip reranking when the dense margin is high. Dense-only retrieval is ~18 ms p95 but loses about 15 nDCG points.
 
 ### Design trade-offs
-**Q48. Streamlit vs FastAPI + React?**
-Streamlit got a usable, Python-only app fast with built-in caching. It has no auth, all sessions share one process, and long generations block that session. For production I'd put `QueryDocService` behind FastAPI and keep Streamlit as an internal tool.
+**Q48. Why did you move from Streamlit to FastAPI + React?**
+Streamlit got a working app fast, but its rerun model fought the product: token streaming with a Stop button, a persistent three-panel layout, a real PDF viewer with highlights, background ingestion with progress and a testable API. FastAPI gives a typed REST/SSE contract (OpenAPI from Pydantic) around the unchanged engine; React gives the interaction model. The cost is more code and a Node build step — not a runtime dependency, since FastAPI serves the built app.
 
 **Q49. Local LLM vs hosted API?**
 Local means privacy (documents never leave the machine), no per-token cost and offline use. A hosted model would be far more accurate and faster per answer. The service boundary makes swapping possible, but local-first was a requirement.
@@ -213,6 +213,52 @@ Verification checks grounding, not relevance. In my own UI test, a salt-length q
 **Q55. What are the biggest remaining weaknesses?**
 A small eval set with AI-assisted labels; retrieval throughput capped by one reranker; CPU-only latency; small-model answer quality; heuristic injection defence; no auth or multi-tenancy; and unexplained generation timeouts at 10–20 concurrent users under memory pressure.
 
+### Full-stack (React + FastAPI)
+**Q56. How does streaming work end to end?**
+The browser POSTs to `/chat/stream` and reads the response body stream; the server validates first (so errors are normal HTTP errors), then runs the generator in a worker thread that pushes events into an asyncio queue via `call_soon_threadsafe`. The async generator emits `meta`, `retrieval`, `token`…, `done`. `EventSource` can't POST, so the client parses SSE itself (`lib/sse.ts`, unit-tested for partial chunks and keep-alives).
+
+**Q57. How does Stop actually stop the GPU?**
+The client aborts the fetch. The server notices (`CancelledError` or `is_disconnected`) and sets a `threading.Event`; a Transformers `StoppingCriteria` checks it at every token, so generation ends at the next token, the GPU lock and admission slot are released, and the partial answer is saved as `cancelled`. There's an API test and a Playwright test for it.
+
+**Q58. Why SSE rather than WebSockets?**
+The data flows one way, SSE is plain HTTP (works through the Vite proxy, no upgrade handshake), has event types and keep-alive comments, and disconnect is a natural cancel signal. WebSockets would add bidirectional framing nobody needs.
+
+**Q59. How do you keep the event loop free?**
+Sync endpoints run in Starlette's threadpool; PDF processing runs in a dedicated ingestion pool; generation runs in its own thread per stream; awaited blocking work is wrapped in `run_in_threadpool` with a timeout. Nothing CPU-heavy executes on the loop — measured overhead of the HTTP/SSE/DB layer was ~4 ms at p50.
+
+**Q60. How does background ingestion report progress?**
+Upload validates cheaply, stores bytes, inserts a `queued` row, commits, then submits a job. The worker writes throttled `stage`/`progress` (extract → embed → ready) to SQLite; the UI polls `/documents` with TanStack Query only while something is processing. I had to commit before submitting — otherwise the worker could start before the row was visible.
+
+**Q61. Why TanStack Query instead of Redux?**
+Almost all state is server state. TanStack gives caching, de-duplication, conditional polling, optimistic deletes and cache writes from the SSE `done` event; local UI state stays in components. A global store would duplicate the server.
+
+**Q62. How do citations navigate to the right page without lying?**
+The server only returns citations that map to retrieved chunks in the allowed scope that still exist in the index, so `page_start` is trustworthy. The viewer opens that page and highlights only text-layer spans inside the passage — and only after confirming the page text contains the passage. Otherwise it says the passage couldn't be located. Deleted documents show a message instead of a broken viewer.
+
+**Q63. What does the TypeScript type layer buy you?**
+`types/api.ts` mirrors the Pydantic models, so a renamed field or a new status breaks the build, not production. Statuses are string unions, so badge maps must handle every case. Zod infers the settings form type from the same schema used for validation.
+
+**Q64. How did you design the UI system?**
+Tokens first: OKLCH neutrals, an indigo-violet accent, status and chart colours with dark/light values as CSS variables; Tailwind maps them to utilities; shadcn components are copied in so I can change them (I did — selected toggles were invisible in dark mode, and Radix ScrollArea clipped text). Accessibility: Radix primitives, focus-visible rings, ARIA labels, live regions, reduced motion, and axe checks in tests.
+
+**Q65. What did visual QA catch?**
+Playwright screenshots at 1440/834/390 px in both themes showed evidence cards and sidebar titles clipped because Radix ScrollArea uses `display: table`; charts captured mid-animation; isolated words highlighted on cited pages. Manual testing caught duplicate close buttons and an overflowing select. Every page now asserts no horizontal overflow.
+
+**Q66. How is the app tested end to end?**
+Playwright starts a fresh stack (built React app served by FastAPI, empty workspace, real models), uploads two real NIST PDFs including 183 pages, asks a question, waits for the streamed verified answer, opens the citation and checks the page number, asks a follow-up, reloads, stops a generation, changes settings, checks analytics and deletes a document. API tests use a stub LLM for speed; Playwright uses the real one.
+
+**Q67. How do settings changes take effect safely?**
+`PUT /settings` validates the merged settings as a whole (overlap ≤ half chunk size, fetch_k ≥ top_k, devices that exist), refuses an embedding-model change while documents exist (vectors would be incomparable), persists to SQLite and applies to the live service: retrieval options immediately, LLM/reranker changes by resetting just that model, chunking for new uploads (re-index applies it to old ones).
+
+**Q68. What happens on restart?**
+Migrations run, settings are re-applied, and reconciliation compares SQLite with the FAISS manifest: documents only in the index are imported, documents only in the DB are marked failed, interrupted jobs with an upload on disk are re-queued. API tests cover documents, conversations and settings surviving a restart.
+
+**Q69. How would you make this multi-user?**
+Auth (OIDC) and per-user document scoping enforced in every query; PostgreSQL; pgvector or Qdrant with tenant filters; a job queue (Celery/Arq) for ingestion; GPU inference servers with batching for reranking and generation; rate limits per user; TLS. The current gate and locks are per-process and would move to the inference service.
+
+**Q70. Measured end-to-end numbers through the API?**
+Fresh server, real models, 31 held-out questions over SSE: evidence appears in p50 100 ms / p95 269 ms, first token p50 1.08 s, full verified answer p50 2.0 s / p95 4.7 s; a 183-page PDF goes from upload to ready in 12.9 s.
+
 ---
 
 ## 3. Hard follow-ups (short answers)
@@ -221,7 +267,8 @@ A small eval set with AI-assisted labels; retrieval throughput capped by one rer
 - **"Did you choose the metric after seeing results?"** No. nDCG@5 and the evidence-span rule were committed in `ffad4b0` before any run.
 - **"Who labelled the data?"** I wrote the questions with AI assistance from the extracted text, with verbatim evidence spans. There was no second annotator; that's a stated limitation.
 - **"Your memory number sounds too good."** It's against unbatched encoding. Against the library default it's 0%, and I say so.
-- **"Why is the 300 ms claim valid if CPU fails?"** It's valid for the configuration tested: an M3 Pro laptop with its integrated GPU. CPU-only fails and is reported as FAIL.
+- **"Why is the 300 ms claim valid if CPU fails?"** It's valid for the configuration tested: an M3 Pro laptop with its integrated GPU — 129 ms p95 in the engine, 269 ms p95 through the HTTP API. CPU-only fails and is reported as FAIL.
+- **"Is the UI just a template?"** No — the components are shadcn/Radix primitives, but the layout, tokens, streaming chat, evidence panel and PDF citation viewer are built for this product, and visual QA screenshots at three viewports and two themes are in `docs/images/ui/`.
 
 ## 4. How to explain measured performance results
 

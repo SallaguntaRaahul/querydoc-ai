@@ -14,7 +14,6 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 
 import { Logo, ThemeToggle } from '@/components/common'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { relativeTime } from '@/lib/format'
@@ -98,7 +97,7 @@ function SidebarBody({ collapsed, onNavigate }: { collapsed: boolean; onNavigate
       {!collapsed && (
         <div className="mt-6 flex min-h-0 flex-1 flex-col">
           <div className="px-5 pb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Recent conversations</div>
-          <ScrollArea className="min-h-0 flex-1 px-3">
+          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3">
             <ul className="flex flex-col gap-0.5 pb-3">
               {(conversations ?? []).slice(0, 30).map((c) => {
                 const active = location.pathname === `/chat/${c.id}`
@@ -120,7 +119,7 @@ function SidebarBody({ collapsed, onNavigate }: { collapsed: boolean; onNavigate
               })}
               {conversations?.length === 0 && <li className="px-2.5 py-1.5 text-xs text-muted-foreground">No conversations yet.</li>}
             </ul>
-          </ScrollArea>
+          </div>
         </div>
       )}
       {collapsed && <div className="flex-1" />}

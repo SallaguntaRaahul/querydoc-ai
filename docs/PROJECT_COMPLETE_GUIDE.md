@@ -9,14 +9,19 @@ This guide is written so that someone who has never seen the repository can unde
 the whole system, run it, reproduce its measurements and explain its design. Companion
 documents go deeper on single topics: `ARCHITECTURE.md`, `TECH_STACK_DECISIONS.md`,
 `RAG_INTERNALS.md`, `PERFORMANCE_REPORT.md`, `EXPERIMENTS.md`, `TESTING_AND_VALIDATION.md`,
-`TROUBLESHOOTING.md`, `RESUME_CLAIM_VALIDATION.md`.
+`TROUBLESHOOTING.md`, `RESUME_CLAIM_VALIDATION.md`, `API.md`.
+
+The system has two layers: the **RAG engine** (`backend/querydoc`, Parts A–I) and the
+**full-stack application** around it — a React/TypeScript frontend and a FastAPI backend
+with SSE streaming, background ingestion and SQLite persistence (**Part K**). Interview
+preparation is Part J.
 
 ---
 
 # Part A — Project Overview
 
 ## 1. Title and author
-QueryDoc AI, by Raahul Sallagunta. Python 3.12 · LangChain · FAISS · SentenceTransformers · Hugging Face Transformers · PyTorch · PyMuPDF · Streamlit · NumPy · Pandas · pytest.
+QueryDoc AI, by Raahul Sallagunta. Python 3.12 · LangChain · FAISS · SentenceTransformers · Hugging Face Transformers · PyTorch · PyMuPDF · FastAPI · SQLAlchemy/Alembic/SQLite · React 19 · TypeScript · Vite · Tailwind CSS v4 · shadcn/ui · Radix · TanStack Query · React Router · react-pdf (PDF.js) · Recharts · Zod · React Hook Form · Motion · pytest · Vitest · Playwright.
 
 ## 2. Executive summary
 QueryDoc AI answers natural-language questions about PDFs entirely on the user's machine. It
@@ -69,7 +74,8 @@ scores; see live timings; tune chunking, retrieval and generation settings; dele
 | F7 | Hybrid retrieval, dedup, MMR, reranking | `retrieval/retriever.py::Retriever.retrieve` |
 | F8 | Local LLM generation with streaming, limits and fallback | `generation/llm.py::LocalLLM` |
 | F9 | Citation parsing, verification, attribution, status | `citations/citations.py::verify_answer` |
-| F10 | Streamlit UI (workspace, chat, source explorer, performance, settings) | `app/main.py` |
+| F10 | React UI: overview, library, three-panel chat, PDF viewer, analytics, settings | `frontend/src/pages/*` |
+| F12 | Versioned REST API + SSE streaming, background ingestion, persistence | `backend/app/*` (see `docs/API.md`) |
 | F11 | Concurrency controls | `faiss_store.RWLock`, `devices.device_lock`, `services/concurrency.GenerationGate` |
 
 ## 8. Non-functional requirements
@@ -115,7 +121,9 @@ evaluation set is small. Production readiness: **not production-ready** (see Par
 
 ```mermaid
 flowchart LR
-    U[User] --> UI[Streamlit UI]
+    U[User] --> UI[React SPA]
+    UI --> API[FastAPI /api/v1 + SSE]
+    API --> SVC
     UI --> SVC[QueryDocService]
     SVC --> ING[Ingestion: validate → extract → clean → chunk → embed]
     ING --> VS[(FAISS store + metadata)]
@@ -133,7 +141,7 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph app
-      MAIN[app/main.py] --> VIEW[components/viewer.py]
+      MAIN[frontend React SPA] --> API[backend/app FastAPI]
     end
     subgraph querydoc
       CFG[config.py] ; EXC[exceptions.py] ; DEV[devices.py]
@@ -218,8 +226,7 @@ under a validated hex id, never the uploaded filename.
 | ms-marco-MiniLM-L-6-v2 | first reranked query | `auto` → MPS here | ~90 MB |
 | Qwen2.5-1.5B-Instruct | first generated answer | `auto` → MPS here | ~3 GB fp16; load 6.5 s warm cache |
 
-All are loaded **local-first** and held by `QueryDocService`; Streamlit holds one service per
-process via `@st.cache_resource`. A failed LLM load switches answers to retrieval-only mode.
+All are loaded **local-first** and held by `QueryDocService`; the FastAPI lifespan creates one `EngineManager` (and so one service) per server process. A failed LLM load switches answers to retrieval-only mode.
 
 ## 20. Concurrency architecture
 - Index: writer-preferring RW lock (parallel searches; exclusive add/delete/save).
@@ -244,7 +251,7 @@ advantages, limitations, performance, production considerations, when to revisit
 | Embedding batch | 32, streamed | Large batches for speed | Large batches used 1–3.5 GB more with no speed gain on CPU (E3) |
 | LLM | Qwen2.5-1.5B-Instruct | Qwen2.5-0.5B | 84% vs 48% accuracy; 1.9 s vs 0.5 s (E7) |
 | Reranker device | Auto (MPS) | CPU | p95 129 ms vs 556 ms on real docs (E4) |
-| UI | Streamlit | FastAPI + React | Speed of delivery; documented limits |
+| UI / API | React + FastAPI (Streamlit in phase 1) | Streamlit, Next.js | Streaming chat, PDF viewer, typed REST/SSE contract |
 | Persistence | FAISS binary + JSON + checksums | pickle-based stores | Security requirement |
 
 Per technology, in one line each (details in `TECH_STACK_DECISIONS.md`):
@@ -254,7 +261,9 @@ Per technology, in one line each (details in `TECH_STACK_DECISIONS.md`):
 - **SentenceTransformers** — bi-encoder embeddings and cross-encoder reranking in one API.
 - **Hugging Face Transformers / PyTorch** — local causal-LM inference on MPS/CPU with chat templates and streaming.
 - **PyMuPDF** — fast extraction with line direction, encryption/image detection, page rendering, optional OCR (AGPL licence caveat).
-- **Streamlit** — reactive Python UI; `st.cache_resource` keeps models loaded.
+- **React + TypeScript + Vite + Tailwind/shadcn** — the product UI (Part K).
+- **FastAPI + SQLAlchemy/Alembic/SQLite** — the API, background work and persistence (Part K).
+- **Streamlit** — phase-1 UI, replaced; kept as a documented decision in `TECH_STACK_DECISIONS.md`.
 - **NumPy / Pandas** — embedding matrices and cache files / UI tables.
 - **rank-bm25** — pure-Python BM25 for the lexical half of hybrid search.
 - **pydantic-settings** — typed `QUERYDOC_*` configuration.
@@ -284,13 +293,13 @@ reauthentication is required?"): the query embedding and BM25 both surface SP 80
 chunks; the cross-encoder ranks the "15 minutes or longer" chunk into the top 5; Qwen answers
 "Reauthentication … following any period of inactivity lasting 15 minutes or longer" but tags
 S4, a summary table on pp. 22-23. Lexical support of the sentence in S4 is below 0.5, so the UI
-shows **Partially verified** instead of a false green check (`docs/images/ui_ask_partially_verified.jpg`).
+shows **Partially verified** instead of a false green check (screenshot from the phase-1 UI; current UI screenshots are in `docs/images/ui/`).
 
 ---
 
 # Part E — Code Walkthrough
 
-### `src/querydoc/__init__.py`
+### `backend/querydoc/__init__.py`
 Sets `OMP_NUM_THREADS=1` on macOS before torch/faiss load and `TOKENIZERS_PARALLELISM=false`.
 Every entry point imports `querydoc` first.
 
@@ -340,11 +349,11 @@ Every entry point imports `querydoc` first.
 ### `evaluation/relevance.py`, `evaluation/synthetic.py`
 Evidence-span ground truth (`GroundTruth.build/judge`), metrics, bootstrap CI; deterministic synthetic PDFs with planted facts, blank/image pages, injected text, encrypted PDFs.
 
-### `app/main.py`, `app/components/viewer.py`
-Sidebar settings → options dict; tabs: Ask (chat, badges, citations, "Open page"), Workspace (upload with progress, document cards, delete), Source explorer (page image with highlight, prev/next, passage score table), Performance (RSS, index size, ingestion and query timings). `render_page` highlights the excerpt on an in-memory copy.
+### `backend/app/*` and `frontend/src/*`
+The HTTP layer and the React application are walked through in Part K.
 
 ### `benchmarks/`, `scripts/`, `tests/`
-Benchmarks write `results/<name>/results.json` + CSV with environment; `make_charts.py` renders `docs/images/*.png`; `scripts/acceptance.py` produces the PASS/FAIL table; `scripts/check_streamlit.py` launch check; `scripts/download_corpus.py` checksum-verified corpus. Tests: unit, integration, e2e (LLM), performance, security (97 total).
+Benchmarks write `results/<name>/results.json` + CSV with environment; `make_charts.py` renders `docs/images/*.png`; `scripts/acceptance.py` produces the PASS/FAIL table; `scripts/check_app.py` launch check; `scripts/download_corpus.py` checksum-verified corpus. Tests: unit, integration, e2e (LLM), performance, security (97 total).
 
 ---
 
@@ -406,8 +415,7 @@ python scripts/download_corpus.py   # optional: evaluation corpus
 **Models.** Downloaded on first use to `~/.cache/huggingface` and reused; later starts load locally
 without network. To pre-download: run the app once, or `python -c "from querydoc.services.rag_service import QueryDocService; QueryDocService().llm()"`.
 
-**Run.** `streamlit run app/main.py` → http://localhost:8501 (run from the project folder so
-`.streamlit/config.toml` applies the 50 MB upload limit).
+**Run.** `./scripts/setup.sh --with-models` once, then `./scripts/dev.sh` (API :8000 + Vite :5173) or `./scripts/start_prod.sh` (one process on :8000). Node 22 is required for the frontend tooling (`frontend/.nvmrc`).
 
 **CPU vs GPU.** `QUERYDOC_LLM_DEVICE` and `QUERYDOC_RERANKER_DEVICE` accept `auto|cpu|mps|cuda`.
 CPU-only: expect ~0.25–0.55 s retrieval with reranking and slower generation; consider
@@ -418,7 +426,7 @@ CPU-only: expect ~0.25–0.55 s retrieval with reranking and slower generation; 
 **Data persistence.** `data/workspace/` (or `QUERYDOC_DATA_DIR`). Back it up as a unit; deleting
 `index/` and `documents.json` resets the workspace.
 
-**Testing.** `pytest` (97 tests), `pytest -m "not llm"` (CI), `ruff check …`, `mypy`.
+**Testing.** `./scripts/test_all.sh` — pytest (119), Vitest (22), Playwright (22); see `docs/TESTING_AND_VALIDATION.md`.
 
 **Benchmarks.** `python benchmarks/run_all_benchmarks.py` (~45-60 min) then `python scripts/acceptance.py`.
 
@@ -448,7 +456,7 @@ throughput ~12 req/s with reranking, generation serialised.
 | Small vs large chunks | 1000/200 | Measured best | Different corpus → re-run E2 sweep |
 | Accuracy vs latency | Rerank top 20 | −0.001 nDCG for 2.2× less rerank work | Tight budgets → top 10 (−3 points) |
 | Reranking accuracy vs cost | Cross-encoder on | +20 nDCG points | Throughput-critical → dense only |
-| Streamlit vs FastAPI + React | Streamlit | Delivery speed | Auth, multi-tenancy, custom UX |
+| Streamlit vs FastAPI + React | React + FastAPI (after a Streamlit phase) | Streaming UX, PDF viewer, API contract | — |
 | Single machine vs distributed | Single machine | Simplicity | Many users or documents |
 
 ---
@@ -485,7 +493,7 @@ from `results/` (see `docs/PERFORMANCE_REPORT.md`).
 ### 1. Project explanations
 
 ### 30-second version
-"QueryDoc AI is a local PDF question-answering system. You upload PDFs, it extracts text with PyMuPDF, chunks it with page tracking, embeds the chunks with a MiniLM SentenceTransformer into a FAISS index, and answers questions with a Qwen2.5 model running on the laptop. Every answer cites the exact pages, and a verifier checks that each cited passage actually supports the sentence. On a 63-question benchmark I built over four NIST standards, hybrid search plus cross-encoder reranking improved nDCG@5 by 44% on held-out questions, and warm retrieval stays under 130 ms at p95 on 180-page documents."
+"QueryDoc AI is a local PDF question-answering app — React frontend, FastAPI backend. You upload PDFs, it extracts text with PyMuPDF, chunks it with page tracking, embeds the chunks with a MiniLM SentenceTransformer into a FAISS index, and streams answers from a Qwen2.5 model running on the laptop. Every answer cites the exact pages — click a citation and the PDF opens at that page with the passage highlighted — and a verifier checks that each cited passage actually supports the sentence. On a 63-question benchmark I built over four NIST standards, hybrid search plus cross-encoder reranking improved nDCG@5 by 44% on held-out questions, and warm retrieval stays under 130 ms at p95 on 180-page documents."
 
 ### 2-minute version
 "The goal was answers you can check. Long PDFs don't fit in an LLM's context, and small local models hallucinate, so I built a retrieval pipeline with verification around a local model.
@@ -499,7 +507,7 @@ Generation: Qwen2.5-1.5B on the Apple GPU gets numbered, delimited sources and s
 I measured everything against pre-registered definitions: retrieval quality on held-out questions, p50/p95 latency, peak memory in fresh processes, and concurrent load. The benchmarks also found real bugs, like a Metal crash when two threads used the GPU at once and a prompt injection the model obeyed. I fixed both and added regression tests."
 
 ### 5-minute architecture walkthrough (whiteboard order)
-1. **Draw the two flows**: ingestion (left to right) and query (left to right below it), one `QueryDocService` in the middle owning all models. Streamlit caches that service per process.
+1. **Draw the stack**: React SPA → FastAPI (REST + SSE) → `EngineManager` → `QueryDocService`, plus SQLite for app state and the FAISS files for vectors. Then the two flows: ingestion (background worker) and query (SSE stream).
 2. **Ingestion**: validation (size, magic bytes, encryption, page limit), SHA-256 → doc id → duplicate detection; per-page extraction with blank/scanned detection; cleaning; chunking with page offsets; batched embedding with a content-hash cache; FAISS add under a write lock; atomic save with checksummed manifest.
 3. **Storage**: FAISS binary + JSONL metadata + manifest (model name, dim, counts, SHA-256), the original PDF stored by doc id for the page viewer, JSON registry. No pickle anywhere.
 4. **Query**: embed (5 ms) → FAISS flat search with an ID selector for document filtering (0.2 ms) → BM25 + RRF (2 ms) → dedup (7 ms) → cross-encoder on top 20 (71 ms on GPU) → top 5.
@@ -608,8 +616,8 @@ The direction is solid: all CIs exclude zero. The size isn't precise: with 31 te
 **Q30. Why Qwen2.5-1.5B and not 0.5B?**
 Measured on 31 held-out questions: 84% vs 48% keyword accuracy; it tagged its own citations 65% vs 6% of the time, and 71% vs 42% of answers cited the gold evidence. The 0.5B model often output just "[S2]". 1.5B is slower (p50 1.9 s vs 0.5 s) but quality won. Both are Apache-2.0 and ungated.
 
-**Q31. How do you avoid reloading the model on every Streamlit rerun?**
-The service (embedder, reranker, index, LLM) is created inside an `@st.cache_resource` function, giving one instance per server process. Per-user state is in `st.session_state`. The LLM loads lazily on the first generated answer.
+**Q31. How do you avoid reloading models per request?**
+The FastAPI lifespan builds one `EngineManager` per process, which owns the embedder, reranker, FAISS index and LLM. Requests borrow it; the LLM and reranker warm up in a background thread at startup (or load lazily). Changing the model in Settings only resets that model, and in-flight generations keep their reference. (In the Streamlit phase the same idea used `@st.cache_resource`.)
 
 **Q32. How do you measure time to first token?**
 Generation runs in a worker thread with `TextIteratorStreamer`; the consumer records `perf_counter` at the first non-empty piece. Measured TTFT p50 0.96 s for 1.5B on MPS, about 18 tokens/s.
@@ -663,8 +671,8 @@ Index built, one cold query reported separately, 10 warm-ups, then 200 timed que
 Rerank fewer candidates (10) or shorter passages, use an ONNX/int8 cross-encoder, cache query results, or skip reranking when the dense margin is high. Dense-only retrieval is ~18 ms p95 but loses about 15 nDCG points.
 
 ### Design trade-offs
-**Q48. Streamlit vs FastAPI + React?**
-Streamlit got a usable, Python-only app fast with built-in caching. It has no auth, all sessions share one process, and long generations block that session. For production I'd put `QueryDocService` behind FastAPI and keep Streamlit as an internal tool.
+**Q48. Why did you move from Streamlit to FastAPI + React?**
+Streamlit got a working app fast, but its rerun model fought the product: token streaming with a Stop button, a persistent three-panel layout, a real PDF viewer with highlights, background ingestion with progress and a testable API. FastAPI gives a typed REST/SSE contract (OpenAPI from Pydantic) around the unchanged engine; React gives the interaction model. The cost is more code and a Node build step — not a runtime dependency, since FastAPI serves the built app.
 
 **Q49. Local LLM vs hosted API?**
 Local means privacy (documents never leave the machine), no per-token cost and offline use. A hosted model would be far more accurate and faster per answer. The service boundary makes swapping possible, but local-first was a requirement.
@@ -688,6 +696,52 @@ Verification checks grounding, not relevance. In my own UI test, a salt-length q
 **Q55. What are the biggest remaining weaknesses?**
 A small eval set with AI-assisted labels; retrieval throughput capped by one reranker; CPU-only latency; small-model answer quality; heuristic injection defence; no auth or multi-tenancy; and unexplained generation timeouts at 10–20 concurrent users under memory pressure.
 
+### Full-stack (React + FastAPI)
+**Q56. How does streaming work end to end?**
+The browser POSTs to `/chat/stream` and reads the response body stream; the server validates first (so errors are normal HTTP errors), then runs the generator in a worker thread that pushes events into an asyncio queue via `call_soon_threadsafe`. The async generator emits `meta`, `retrieval`, `token`…, `done`. `EventSource` can't POST, so the client parses SSE itself (`lib/sse.ts`, unit-tested for partial chunks and keep-alives).
+
+**Q57. How does Stop actually stop the GPU?**
+The client aborts the fetch. The server notices (`CancelledError` or `is_disconnected`) and sets a `threading.Event`; a Transformers `StoppingCriteria` checks it at every token, so generation ends at the next token, the GPU lock and admission slot are released, and the partial answer is saved as `cancelled`. There's an API test and a Playwright test for it.
+
+**Q58. Why SSE rather than WebSockets?**
+The data flows one way, SSE is plain HTTP (works through the Vite proxy, no upgrade handshake), has event types and keep-alive comments, and disconnect is a natural cancel signal. WebSockets would add bidirectional framing nobody needs.
+
+**Q59. How do you keep the event loop free?**
+Sync endpoints run in Starlette's threadpool; PDF processing runs in a dedicated ingestion pool; generation runs in its own thread per stream; awaited blocking work is wrapped in `run_in_threadpool` with a timeout. Nothing CPU-heavy executes on the loop — measured overhead of the HTTP/SSE/DB layer was ~4 ms at p50.
+
+**Q60. How does background ingestion report progress?**
+Upload validates cheaply, stores bytes, inserts a `queued` row, commits, then submits a job. The worker writes throttled `stage`/`progress` (extract → embed → ready) to SQLite; the UI polls `/documents` with TanStack Query only while something is processing. I had to commit before submitting — otherwise the worker could start before the row was visible.
+
+**Q61. Why TanStack Query instead of Redux?**
+Almost all state is server state. TanStack gives caching, de-duplication, conditional polling, optimistic deletes and cache writes from the SSE `done` event; local UI state stays in components. A global store would duplicate the server.
+
+**Q62. How do citations navigate to the right page without lying?**
+The server only returns citations that map to retrieved chunks in the allowed scope that still exist in the index, so `page_start` is trustworthy. The viewer opens that page and highlights only text-layer spans inside the passage — and only after confirming the page text contains the passage. Otherwise it says the passage couldn't be located. Deleted documents show a message instead of a broken viewer.
+
+**Q63. What does the TypeScript type layer buy you?**
+`types/api.ts` mirrors the Pydantic models, so a renamed field or a new status breaks the build, not production. Statuses are string unions, so badge maps must handle every case. Zod infers the settings form type from the same schema used for validation.
+
+**Q64. How did you design the UI system?**
+Tokens first: OKLCH neutrals, an indigo-violet accent, status and chart colours with dark/light values as CSS variables; Tailwind maps them to utilities; shadcn components are copied in so I can change them (I did — selected toggles were invisible in dark mode, and Radix ScrollArea clipped text). Accessibility: Radix primitives, focus-visible rings, ARIA labels, live regions, reduced motion, and axe checks in tests.
+
+**Q65. What did visual QA catch?**
+Playwright screenshots at 1440/834/390 px in both themes showed evidence cards and sidebar titles clipped because Radix ScrollArea uses `display: table`; charts captured mid-animation; isolated words highlighted on cited pages. Manual testing caught duplicate close buttons and an overflowing select. Every page now asserts no horizontal overflow.
+
+**Q66. How is the app tested end to end?**
+Playwright starts a fresh stack (built React app served by FastAPI, empty workspace, real models), uploads two real NIST PDFs including 183 pages, asks a question, waits for the streamed verified answer, opens the citation and checks the page number, asks a follow-up, reloads, stops a generation, changes settings, checks analytics and deletes a document. API tests use a stub LLM for speed; Playwright uses the real one.
+
+**Q67. How do settings changes take effect safely?**
+`PUT /settings` validates the merged settings as a whole (overlap ≤ half chunk size, fetch_k ≥ top_k, devices that exist), refuses an embedding-model change while documents exist (vectors would be incomparable), persists to SQLite and applies to the live service: retrieval options immediately, LLM/reranker changes by resetting just that model, chunking for new uploads (re-index applies it to old ones).
+
+**Q68. What happens on restart?**
+Migrations run, settings are re-applied, and reconciliation compares SQLite with the FAISS manifest: documents only in the index are imported, documents only in the DB are marked failed, interrupted jobs with an upload on disk are re-queued. API tests cover documents, conversations and settings surviving a restart.
+
+**Q69. How would you make this multi-user?**
+Auth (OIDC) and per-user document scoping enforced in every query; PostgreSQL; pgvector or Qdrant with tenant filters; a job queue (Celery/Arq) for ingestion; GPU inference servers with batching for reranking and generation; rate limits per user; TLS. The current gate and locks are per-process and would move to the inference service.
+
+**Q70. Measured end-to-end numbers through the API?**
+Fresh server, real models, 31 held-out questions over SSE: evidence appears in p50 100 ms / p95 269 ms, first token p50 1.08 s, full verified answer p50 2.0 s / p95 4.7 s; a 183-page PDF goes from upload to ready in 12.9 s.
+
 ---
 
 ### 3. Hard follow-ups (short answers)
@@ -696,7 +750,8 @@ A small eval set with AI-assisted labels; retrieval throughput capped by one rer
 - **"Did you choose the metric after seeing results?"** No. nDCG@5 and the evidence-span rule were committed in `ffad4b0` before any run.
 - **"Who labelled the data?"** I wrote the questions with AI assistance from the extracted text, with verbatim evidence spans. There was no second annotator; that's a stated limitation.
 - **"Your memory number sounds too good."** It's against unbatched encoding. Against the library default it's 0%, and I say so.
-- **"Why is the 300 ms claim valid if CPU fails?"** It's valid for the configuration tested: an M3 Pro laptop with its integrated GPU. CPU-only fails and is reported as FAIL.
+- **"Why is the 300 ms claim valid if CPU fails?"** It's valid for the configuration tested: an M3 Pro laptop with its integrated GPU — 129 ms p95 in the engine, 269 ms p95 through the HTTP API. CPU-only fails and is reported as FAIL.
+- **"Is the UI just a template?"** No — the components are shadcn/Radix primitives, but the layout, tokens, streaming chat, evidence panel and PDF citation viewer are built for this product, and visual QA screenshots at three viewports and two themes are in `docs/images/ui/`.
 
 ### 4. How to explain measured performance results
 
@@ -704,3 +759,171 @@ A small eval set with AI-assisted labels; retrieval throughput capped by one rer
 2. Give the number with its condition ("129 ms p95 on a 183-page PDF with the reranker on the laptop GPU").
 3. Volunteer the boundary ("CPU-only misses at ~550 ms; full answers take ~2 s").
 4. Point to the evidence ("`results/retrieval_latency/results.json`, reproducible with one command").
+
+---
+
+# Part K — Full-Stack Application Internals (React + FastAPI)
+
+This part explains the product layer added in the full-stack upgrade: how the React
+application, the FastAPI service and the RAG engine fit together. Diagrams for the whole
+system are in `docs/ARCHITECTURE.md`; the endpoint reference is `docs/API.md`.
+
+## K.1 Why replace Streamlit
+
+Streamlit re-runs the script on every interaction and shares one process across sessions. That
+made four requirements awkward: token-by-token streaming with cancellation, a persistent
+three-panel layout with a real PDF viewer, background ingestion with progress, and a documented,
+testable API. React + FastAPI separates presentation from business logic, gives a typed contract
+(`backend/app/schemas/api.py` ↔ `frontend/src/types/api.ts`) and lets each side be tested on its own.
+
+| Concern | Streamlit (phase 1) | React + FastAPI (now) |
+|---|---|---|
+| Streaming | full rerun per update | SSE token events, abortable |
+| Layout | page-level reruns | resizable, collapsible panels; mobile drawers |
+| PDF citations | server-rendered PNG of a page | PDF.js canvas + text layer with honest highlights, search, zoom |
+| Background work | blocking in the script | worker thread pool + persisted progress |
+| API | none | versioned REST + OpenAPI |
+| Tests | Python only | pytest API tests, Vitest, Playwright in a real browser |
+
+## K.2 React component architecture
+
+```mermaid
+flowchart TB
+    P[Providers: QueryClient · ThemeProvider · MotionConfig · TooltipProvider · Toaster] --> RR[RouterProvider]
+    RR --> AS[AppShell]
+    AS --> SB[Sidebar: nav · new chat · recent conversations · model status · theme]
+    AS --> PG{Route}
+    PG --> OV[DashboardPage] --> UD[UploadDropzone]
+    PG --> LB[LibraryPage] --> DCard[DocumentCard] --> TH[PdfThumbnail lazy]
+    PG --> CP[ChatPage]
+    CP --> CMP[Composer + ScopePicker]
+    CP --> ML[UserBubble · AssistantMessage → CitationChip · source pills · actions]
+    CP --> EP[EvidencePanel: Evidence tab · Document tab → PdfViewer]
+    PG --> VP[ViewerPage] --> PV[PdfViewer] & DChat[DocumentChat]
+    PG --> AN[AnalyticsPage → ChartCard · MetricCard · Recharts]
+    PG --> ST[SettingsPage → RHF + Zod]
+```
+
+- **Folders:** `components/ui` (shadcn primitives), `components/` (app shell, shared pieces such as `EmptyState`, status badges, `ThemeToggle`), `features/<area>/` (domain components: chat, documents, viewer, analytics, settings), `pages/` (route components that compose features), `hooks/`, `lib/` (API client, SSE parser, formatting), `services/queries.ts` (all server-state hooks), `types/`.
+- **Rule of thumb:** pages compose; features own domain UI; `lib` and `services` contain no JSX. Components receive data and callbacks; only pages and hooks talk to the network.
+- **Code splitting:** every page except the overview is `React.lazy`-loaded, so PDF.js (~600 KB) and Recharts (~400 KB) load only where used.
+
+## K.3 TypeScript design decisions
+
+- **Strict mode** with `noUnusedLocals/Parameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`.
+- **API types mirror Pydantic models** (`types/api.ts`): unions for statuses (`'queued' | 'processing' | 'ready' | 'failed'`), so a missing case is a compile error in switch statements and badge maps.
+- **Zod for runtime validation at the form boundary** (`features/settings/schema.ts`); the inferred type (`z.infer`) is the form type, so schema and form cannot drift.
+- **Errors are typed:** `ApiError(status, code, message, details)` from `lib/api.ts`; UI branches on `code` (e.g. `generation_queue_full` shows "The model is busy").
+- TypeScript 7 (native compiler) builds in under a second; a planted type error confirmed the checker runs.
+
+## K.4 Tailwind CSS design system
+
+- **Tokens** (`src/index.css`): OKLCH colour variables for background, card, popover, primary (indigo-violet), muted, accent, destructive, border/input/ring, plus `--success`, `--warning`, `--info`, `--highlight` and five chart colours from a CVD-validated palette. Each token has a light and a dark value; `html.dark` switches them.
+- **Tailwind v4 `@theme inline`** maps tokens to utilities (`bg-card`, `text-muted-foreground`, `bg-success/12`), so components never hard-code colours.
+- **Typography:** Geist variable font; 2xl/semibold page titles, sm body, 11–12 px metadata; `tabular-nums` for metrics.
+- **Spacing & shape:** 4 px grid, `--radius` 0.7 rem, cards with subtle borders and minimal shadows; restrained motion (150–250 ms).
+- **Accessibility:** `:focus-visible` outline in the ring colour, skip-to-content link, ARIA labels on icon buttons, `role="status"`/`aria-live` for progress and streaming, `prefers-reduced-motion` honoured globally and via `MotionConfig`.
+- **Theme:** dark by default; `ThemeProvider` stores `dark | light | system`, applies the class, and a pre-paint script in `index.html` avoids a flash of the wrong theme.
+
+## K.5 FastAPI architecture
+
+- **Factory** `create_app(app_settings, manager)` (`backend/app/main.py`) — injectable for tests (the API tests pass a manager with a stub LLM).
+- **Lifespan:** migrations → database → `EngineManager` → persisted settings → reconciliation (DB ↔ FAISS index) → background warm-up of the reranker and LLM.
+- **Layers:** routers (`app/api/v1`) validate and translate; services (`app/services`) hold use-case logic; `EngineManager` (`app/rag/engine.py`) is the only object touching the RAG engine; models/DB (`app/models`, `app/db`) persist state.
+- **Middleware:** request id (header in/out, contextvar for logs), JSON access log, CORS (configured origins only).
+- **Dependencies:** `get_ctx` (app context: settings, manager, worker) and `get_db` (session per request, commit/rollback).
+- **Static SPA serving:** when `frontend/dist` exists, `/assets` is mounted and other non-API paths fall back to `index.html` (path-traversal-safe check).
+
+## K.6 REST API lifecycle (one request)
+
+1. Uvicorn accepts the connection; middleware assigns `X-Request-ID`.
+2. FastAPI parses and validates the body against the Pydantic schema → 422 `validation_error` with field locations on failure.
+3. Synchronous endpoints run in Starlette's threadpool (no blocking of the event loop); async endpoints `await` work wrapped in `run_in_threadpool` with a timeout (504 `timeout`).
+4. Services raise `APIError` or engine exceptions; exception handlers map them to `{error:{code,message,details}}` with the right status (`app/core/errors.py`).
+5. The session commits on success (rolls back on error); the access log records method, path, status and duration.
+
+## K.7 SSE streaming internals
+
+Server (`backend/app/api/v1/chat.py`):
+
+1. Validate and prepare (scope, conversation, history, user message) *before* streaming — errors are ordinary HTTP errors.
+2. Start a worker thread that iterates `QueryDocService.answer_stream(...)`. Each event is pushed into an `asyncio.Queue` with `loop.call_soon_threadsafe`.
+3. The async generator yields `meta`, then whatever arrives: `retrieval` (sources + latency), `token` (text deltas), `done` (final verified message) or `error`. Every 10 s of silence it sends a `: keep-alive` comment and checks `request.is_disconnected()`.
+4. Disconnect or timeout → `cancel.set()`. Generation uses a Transformers `StoppingCriteria` that checks this event at every token, so the GPU and the admission slot are released immediately. The worker persists the final (or `cancelled`) message itself, so the database is correct even if nobody is listening.
+
+Client (`frontend/src/lib/sse.ts`, `hooks/use-chat-stream.ts`): `fetch` POST, read `res.body.getReader()`, decode, split on blank lines, parse `event:`/`data:` lines (comments ignored, partial chunks buffered). `AbortController.abort()` is the Stop button.
+
+## K.8 React state management and TanStack Query caching
+
+| State | Where | Why |
+|---|---|---|
+| Documents, conversations, settings, health, analytics | TanStack Query (`services/queries.ts`) | cached, de-duplicated, invalidated after mutations |
+| Live stream (`phase`, `text`, `sources`, `error`) | `useChatStream` local state | high-frequency updates that should not churn the cache |
+| UI preferences (theme, sidebar, evidence panel) | `localStorage` + React state | per-browser, survives reloads |
+| Form state | React Hook Form | validation and dirty tracking without re-rendering the page on each keystroke |
+
+Caching details: `staleTime` 5 s; no refetch on window focus; retry network errors but not 4xx; **documents poll every 0.8 s only while any document is queued/processing**; health polls every 3 s while the LLM is loading, otherwise 15 s; delete is optimistic (removed from the list immediately, then refetched); the SSE `done` event writes the final message into the cached conversation, then invalidates conversations and analytics.
+
+## K.9 PDF.js integration and citation navigation
+
+- `pdf-setup.ts` configures the PDF.js worker (`pdf.worker.min.mjs`) so parsing and rendering stay off the main thread; `PdfThumbnail` renders page 1 only when a card scrolls into view (IntersectionObserver).
+- `PdfViewer` renders one page (canvas + text layer) at the container width × zoom (ResizeObserver), with page input, prev/next, zoom steps, fit-to-width, and whole-document search (`getTextContent` per page → pages with hit counts, next/previous match).
+- **Citation click** → `{docId, page: citation.page_start, excerpt}` from the *verified* citation metadata (the server guarantees the chunk exists, belongs to the allowed documents and matches the index). The evidence panel switches to the Document tab at that page; "open in full viewer" keeps the page in the URL.
+- **Highlighting without fabrication:** `passageItemMatcher` first checks that the page's text layer actually contains a 48-character probe of the passage; only then are text-layer spans (≥ 20 characters) that lie inside the passage, or start/end inside it, wrapped in `<mark>`. Text is HTML-escaped before marking (PDF text cannot inject markup). If the passage is not found, nothing is highlighted and the banner says so.
+- A citation to a deleted document shows "This document is no longer in the library" instead of a broken viewer.
+
+## K.10 Backend background processing
+
+`IngestionWorker` (`backend/app/workers/ingestion.py`) wraps a bounded `ThreadPoolExecutor`:
+
+- Upload handler validates cheaply, stores bytes in `uploads/<id>.pdf`, inserts the row (`queued`), **commits**, then submits — so the worker always sees the row.
+- The job sets `processing`, calls `QueryDocService.ingest(progress=…)`, writes throttled progress (extract 0–35 %, embed 35–95 %), then `ready` with pages, chunks, stage timings and embedding throughput; failures become `failed` with the engine's message (e.g. "OCR is disabled").
+- One job per document at a time; re-index copies the stored PDF aside before deleting old vectors so a failure cannot lose the file.
+- Restart safety: reconciliation re-queues interrupted jobs whose upload still exists and marks the rest failed.
+
+## K.11 Frontend ↔ backend communication
+
+| Interaction | Mechanism |
+|---|---|
+| JSON reads/writes | `fetch` via `lib/api.ts` (`/api/v1/...`, same origin in prod; Vite proxy in dev) |
+| Upload with progress | `XMLHttpRequest` (`uploadWithProgress`) — `fetch` has no upload progress events |
+| Processing progress | TanStack Query polling of `/documents` while busy |
+| Answer streaming | `fetch` + `ReadableStream` SSE parser |
+| PDFs | `GET /documents/{id}/file` fetched by PDF.js |
+| Errors | `ApiError` with the backend's `code`; network failures become `network_error` ("Cannot reach the QueryDoc AI server") |
+
+## K.12 Error handling
+
+- **Backend:** one error contract; engine exceptions mapped centrally; unexpected exceptions logged with traceback and returned as a generic 500 (no internals leaked); background failures stored on the document; stream failures stored as assistant messages with status `error`.
+- **Frontend:** toasts for actions (upload/delete/save), inline alerts in context (chat error with Dismiss, backend offline banner on the overview), empty and error states on every page, form field errors from both Zod and the server's 422 details, React Router `NotFound`.
+
+## K.13 Security boundaries (full stack)
+
+See `docs/ARCHITECTURE.md` §8 for the table. Highlights: streamed upload size limit (never buffers more than limit + 1 MB), magic-byte and PyMuPDF validation, sanitised display names, id validation before filesystem access, CORS allow-list, no cookies/credentials, delimited and redacted untrusted document text, citation validation against scope and index, no pickle. **Not provided:** authentication, TLS, multi-tenant isolation — local single-user mode only.
+
+## K.14 Concurrency (full stack)
+
+Requests run concurrently in the threadpool; FAISS reads share a readers–writer lock; GPU work is serialised by one lock per device; generation goes through `GenerationGate` (1 active, 8 queued, 120 s) acquired at the start of the request; ingestion runs in its own pool; SQLite uses WAL and short sessions. The API tests prove 6 concurrent chats succeed, queue overflow returns 429, and a disconnect cancels generation.
+
+## K.15 Performance bottlenecks (measured)
+
+| Stage | Cost | Evidence |
+|---|---|---|
+| Cross-encoder reranking | ~71 ms (GPU) / ~300 ms (CPU) per query | `results/retrieval_latency*` |
+| Local generation | ~18 tokens/s; TTFT ~1.1 s; full answer p50 2.0 s | `results/api_e2e` |
+| Embedding during ingestion | 80–86 % of ingestion time | `results/ingestion` |
+| HTTP + SSE + DB overhead | ~4 ms at p50 (client 100 ms vs server 96 ms to evidence) | `results/api_e2e` |
+| Frontend | PDF.js and Recharts code-split; first PDF render < 1 s locally | Playwright runs |
+
+The throughput ceiling for concurrent retrieval (~12 req/s) is the single reranker on one GPU, not the web layer.
+
+## K.16 Testing strategy
+
+A pyramid: engine unit/integration tests (fast, deterministic) → API tests with the real pipeline and a stub LLM (HTTP contract, SSE, concurrency, security) → frontend unit/component tests with mocked `fetch` and axe checks → Playwright end-to-end against a freshly started real stack with real models → visual QA screenshots at three viewports in both themes. Benchmarks are separate from tests: tests prove behaviour, benchmarks measure it. Details: `docs/TESTING_AND_VALIDATION.md`.
+
+## K.17 Deployment considerations
+
+- **Local dev:** `scripts/dev.sh`; **local production-style:** `scripts/start_prod.sh` (one process, built SPA); **setup:** `scripts/setup.sh --with-models`.
+- **Resources:** ~3 GB for the 1.5B model (unified memory on Apple silicon), ~0.5–1 GB process RSS, disk for models (~3.3 GB) and documents.
+- **Docker:** not provided — containers on macOS cannot use the Apple GPU, which the latency results depend on. On Linux + CUDA a container would be straightforward (uvicorn + built `dist`).
+- **Going multi-user would require:** authentication and per-user document isolation, PostgreSQL instead of SQLite, a vector store with metadata filtering (pgvector/Qdrant), a job queue for ingestion, GPU inference servers with batching (e.g. vLLM) for generation and reranking, TLS and rate limiting. None of these are implemented.

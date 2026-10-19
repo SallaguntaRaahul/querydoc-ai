@@ -1,0 +1,37 @@
+ingested NIST.AI.100-1.pdf: 48 pages in 3.5s
+ingested NIST.SP.800-37r2.pdf: 183 pages in 12.9s
+ingested NIST.SP.800-61r2.pdf: 80 pages in 4.2s
+ingested NIST.SP.800-63b.pdf: 80 pages in 3.9s
+[1/31] evidence 91 ms · first token 1102 ms · total 1768 ms · verified
+[2/31] evidence 98 ms · first token 1575 ms · total 2105 ms · partially_verified
+[3/31] evidence 148 ms · first token 1223 ms · total 2040 ms · verified
+[4/31] evidence 280 ms · first token 1234 ms · total 2105 ms · verified
+[5/31] evidence 92 ms · first token 1107 ms · total 4629 ms · verified
+[6/31] evidence 172 ms · first token 1254 ms · total 2485 ms · verified
+[7/31] evidence 146 ms · first token 1140 ms · total 4691 ms · verified
+[8/31] evidence 115 ms · first token 1296 ms · total 1299 ms · insufficient_evidence
+[9/31] evidence 139 ms · first token 1073 ms · total 2431 ms · verified
+[10/31] evidence 99 ms · first token 1061 ms · total 2504 ms · partially_verified
+[11/31] evidence 167 ms · first token 1070 ms · total 1773 ms · verified
+[12/31] evidence 99 ms · first token 1220 ms · total 1304 ms · verified
+[13/31] evidence 74 ms · first token 970 ms · total 2331 ms · verified
+[14/31] evidence 155 ms · first token 1161 ms · total 1309 ms · partially_verified
+[15/31] evidence 98 ms · first token 992 ms · total 1104 ms · verified
+[16/31] evidence 88 ms · first token 1009 ms · total 1555 ms · verified
+[17/31] evidence 76 ms · first token 1021 ms · total 4072 ms · verified
+[18/31] evidence 113 ms · first token 1038 ms · total 3434 ms · verified
+[19/31] evidence 268 ms · first token 1267 ms · total 4261 ms · verified
+[20/31] evidence 127 ms · first token 1099 ms · total 3190 ms · verified
+[21/31] evidence 111 ms · first token 1147 ms · total 4733 ms · verified
+[22/31] evidence 270 ms · first token 1260 ms · total 1265 ms · verified
+[23/31] evidence 86 ms · first token 946 ms · total 2547 ms · verified
+[24/31] evidence 98 ms · first token 1022 ms · total 1656 ms · verified
+[25/31] evidence 94 ms · first token 1055 ms · total 2051 ms · partially_verified
+[26/31] evidence 106 ms · first token 976 ms · total 1351 ms · verified
+[27/31] evidence 85 ms · first token 957 ms · total 1913 ms · verified
+[28/31] evidence 81 ms · first token 940 ms · total 1937 ms · verified
+[29/31] evidence 95 ms · first token 1102 ms · total 1743 ms · verified
+[30/31] evidence 100 ms · first token 1082 ms · total 1569 ms · verified
+[31/31] evidence 101 ms · first token 1058 ms · total 1930 ms · verified
+time to evidence p50 100 p95 269 ms | first token p50 1078 | total p50 2045 p95 4663 ms
+results -> /Users/raahul/Desktop/Projects/querydoc-ai.nosync/results/api_e2e

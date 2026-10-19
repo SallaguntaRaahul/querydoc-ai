@@ -163,7 +163,22 @@ Embedding is 80–86% of ingestion time; extraction scales linearly (~8 ms/page)
 
 ## E6. Concurrency and E7. Generation
 
-See `docs/PERFORMANCE_REPORT.md` §5–6 (results in `results/concurrency/` and `results/generation/`).
+See `docs/PERFORMANCE_REPORT.md` §6–7 (results in `results/concurrency/` and `results/generation/`).
+
+## E8. Full stack: latency through the HTTP API (`results/api_e2e/`)
+
+**Question.** What does a user of the React app actually wait for, once HTTP, SSE, SQLite and the background worker are in the path?
+
+**Setup.** `benchmarks/benchmark_api.py`: fresh FastAPI server, empty workspace, real models; upload the 4 NIST PDFs via the API; stream the 31 held-out questions via `/chat/stream`; client-side timestamps.
+
+| Measure | p50 | p95 |
+|---|---|---|
+| Time to evidence (SSE `retrieval` event) | 100 ms | 269 ms |
+| Server-side retrieval | 96 ms | 264 ms |
+| Time to first token | 1.08 s | 1.26 s |
+| Full answer | 2.05 s | 4.66 s |
+
+**Findings.** The web layer adds only a few milliseconds over the engine. Retrieval over HTTP stays under 300 ms at p95, but with less headroom than the engine benchmark: this run started with 12.8 GB of swap in use, and its p95 is about 2× the engine-only p95. Answer time is dominated by local generation (~36 tokens per answer at ~18 tokens/s). Upload → ready for the 183-page PDF took 12.9 s through the worker, versus 10.8 s in the engine benchmark (an extra model load and DB writes, under higher memory pressure).
 
 ---
 

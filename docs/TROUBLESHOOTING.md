@@ -151,3 +151,43 @@ By design: at most `QUERYDOC_MAX_ACTIVE_GENERATIONS` (1) answers are generated a
 `QUERYDOC_MAX_GENERATION_QUEUE` (8) may wait (the slot is taken before retrieval); further requests are
 rejected immediately rather than piling up. Retrieval-only requests are not gated. Under heavy memory
 pressure, admitted requests can still hit the 120 s timeout (observed at 10-20 users, not root-caused).
+
+
+---
+
+## Full-stack (React + FastAPI) issues
+
+### 17. `pdfjs-dist` requires Node ≥ 22.13
+`npm install` warned `EBADENGINE pdfjs-dist ... required: node >=22.13`. The machine default was Node 20.
+**Fix:** `frontend/.nvmrc` pins 22.18.0; all scripts put that Node first on `PATH`.
+
+### 18. npm `ERESOLVE` / "Cannot read properties of null (reading 'edgesOut')"
+`@hookform/resolvers` 6 declares optional peers (`effect@^4`) that conflict with other optional peers.
+**Fix:** `frontend/.npmrc` sets `legacy-peer-deps=true`. Side effect: real peers are not auto-installed —
+`@testing-library/dom` had to be added explicitly (Vitest failed with "Cannot find module").
+
+### 19. Generated shadcn components import from `"cn"`
+28 components came out with `import { cn } from "cn"` and `sonner.tsx` imported `next-themes`.
+**Fix:** rewrote the imports to `@/lib/utils` and the app's own `useTheme`.
+
+### 20. Evidence cards / sidebar titles clipped at the right edge
+**Cause:** Radix `ScrollArea` wraps content in `display: table`, which grows to the longest line, so
+`truncate`/wrapping never applies. Found in Playwright screenshots.
+**Fix:** native `overflow-y-auto overflow-x-hidden` containers in the evidence panel and sidebar.
+
+### 21. Single words highlighted on cited PDF pages
+Short text-layer spans (link labels like "Implement") occurred inside the passage and were highlighted.
+**Fix:** spans must be ≥ 20 characters to count; lines that start or end inside the passage are still matched.
+
+### 22. The in-app preview could not start the shell scripts ("Operation not permitted")
+The preview launcher is not allowed to execute scripts on the Desktop path. `.claude/launch.json`
+launches `node .../vite.js` and `python -m uvicorn` directly instead. Use `scripts/dev.sh` from a terminal.
+
+### 23. Playwright: `route.continue: Route is already handled!`
+A delayed route handler resumed after `unroute`. The visual spec now waits for the response before
+removing the route and ignores the late `continue`.
+
+### 24. Typecheck passed silently with TypeScript 7
+`tsc -b` printed nothing; to make sure it really checks, a deliberately wrong file was added
+(`error TS2322` reported) and removed. `vitest-axe` matchers needed a module augmentation
+(`src/test/vitest-axe.d.ts`) once test files were included in the build.

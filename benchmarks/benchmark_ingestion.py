@@ -16,7 +16,6 @@ import tempfile
 from pathlib import Path
 
 from common import environment, load_corpus, write_results
-
 from querydoc.config import Settings
 from querydoc.embeddings.embedder import Embedder
 from querydoc.evaluation.synthetic import make_synthetic_pdf

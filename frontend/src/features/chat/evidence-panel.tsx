@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 
 import { EmptyState } from '@/components/common'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PdfViewer } from '@/features/viewer/pdf-viewer'
 import { pagesLabel } from '@/lib/format'
@@ -69,8 +68,8 @@ export function EvidencePanel({
             </Button>
           )}
         </div>
-        <TabsContent value="evidence" className="mt-0 min-h-0 flex-1">
-          <ScrollArea className="h-full">
+        <TabsContent value="evidence" className="mt-0 min-h-0 min-w-0 flex-1">
+          <div className="scrollbar-thin h-full overflow-y-auto overflow-x-hidden">
             <div className="space-y-2.5 p-3">
               {loading && sources.length === 0 &&
                 Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-lg bg-muted" />)}
@@ -117,7 +116,7 @@ export function EvidencePanel({
                 )
               })}
             </div>
-          </ScrollArea>
+          </div>
         </TabsContent>
         <TabsContent value="document" className="mt-0 min-h-0 flex-1">
           {open ? (

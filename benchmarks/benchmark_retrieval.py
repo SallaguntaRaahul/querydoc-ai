@@ -21,7 +21,6 @@ import time
 from dataclasses import asdict
 
 from common import EVAL_SET, environment, latency_summary, load_corpus, write_results
-
 from querydoc.chunking.chunkers import ChunkingConfig, chunk_document
 from querydoc.embeddings.embedder import Embedder
 from querydoc.evaluation.relevance import load_eval_set

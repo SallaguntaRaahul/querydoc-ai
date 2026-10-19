@@ -69,7 +69,7 @@ function LiveTelemetry() {
                 <XAxis dataKey="i" {...axisProps(c.axis)} />
                 <YAxis {...axisProps(c.axis)} width={44} />
                 <RTooltip content={<ChartTooltipBox unit=" ms" />} cursor={{ stroke: c.grid }} />
-                <Line type="linear" dataKey="retrieval" name="retrieval" stroke={c.c1} strokeWidth={2} dot={{ r: 2.5 }} activeDot={{ r: 4 }} connectNulls />
+                <Line isAnimationActive={false} type="linear" dataKey="retrieval" name="retrieval" stroke={c.c1} strokeWidth={2} dot={{ r: 2.5 }} activeDot={{ r: 4 }} connectNulls />
               </LineChart>
             </ResponsiveContainer></div>
           </ChartCard>
@@ -81,8 +81,8 @@ function LiveTelemetry() {
                 <XAxis dataKey="i" {...axisProps(c.axis)} />
                 <YAxis {...axisProps(c.axis)} width={48} />
                 <RTooltip content={<ChartTooltipBox unit=" ms" />} cursor={{ stroke: c.grid }} />
-                <Line type="linear" dataKey="generation" name="generation" stroke={c.c2} strokeWidth={2} dot={{ r: 2.5 }} connectNulls />
-                <Line type="linear" dataKey="total" name="total" stroke={c.c3} strokeWidth={2} dot={{ r: 2.5 }} connectNulls />
+                <Line isAnimationActive={false} type="linear" dataKey="generation" name="generation" stroke={c.c2} strokeWidth={2} dot={{ r: 2.5 }} connectNulls />
+                <Line isAnimationActive={false} type="linear" dataKey="total" name="total" stroke={c.c3} strokeWidth={2} dot={{ r: 2.5 }} connectNulls />
               </LineChart>
             </ResponsiveContainer></div>
           </ChartCard>
@@ -167,8 +167,8 @@ function Benchmarks() {
                 <XAxis dataKey="metric" {...axisProps(c.axis)} />
                 <YAxis domain={[0, 1]} {...axisProps(c.axis)} />
                 <RTooltip content={<ChartTooltipBox />} cursor={{ fill: c.grid, opacity: 0.4 }} />
-                <Bar dataKey="baseline" name="baseline" fill={c.c1} radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="optimized" name="optimized" fill={c.c2} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar isAnimationActive={false} dataKey="baseline" name="baseline" fill={c.c1} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar isAnimationActive={false} dataKey="optimized" name="optimized" fill={c.c2} radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer></div>
           </ChartCard>
@@ -198,7 +198,7 @@ function Benchmarks() {
               <XAxis type="number" domain={[0, 1]} {...axisProps(c.axis)} />
               <YAxis type="category" dataKey="chunking" width={110} interval={0} {...axisProps(c.axis)} />
               <RTooltip content={<ChartTooltipBox />} cursor={{ fill: c.grid, opacity: 0.4 }} />
-              <Bar dataKey="ndcg_all" name="nDCG@5" fill={c.c1} radius={[0, 4, 4, 0]} maxBarSize={16}
+              <Bar isAnimationActive={false} dataKey="ndcg_all" name="nDCG@5" fill={c.c1} radius={[0, 4, 4, 0]} maxBarSize={16}
                 label={{ position: 'right', fill: c.axis, fontSize: 10, formatter: (v: unknown) => Number(v).toFixed(3) }} />
             </BarChart>
           </ResponsiveContainer></div>
@@ -222,9 +222,9 @@ function Benchmarks() {
               <YAxis {...axisProps(c.axis)} width={44} />
               <RTooltip content={<ChartTooltipBox unit=" ms" />} cursor={{ fill: c.grid, opacity: 0.4 }} />
               <ReferenceLine y={300} stroke={c.axis} strokeDasharray="5 4" />
-              <Bar dataKey="baseline_dense_p95" name="baseline dense p95" fill={c.c1} radius={[4, 4, 0, 0]} maxBarSize={22} />
-              <Bar dataKey="optimized_p50" name="optimized p50" fill={c.c3} radius={[4, 4, 0, 0]} maxBarSize={22} />
-              <Bar dataKey="optimized_p95" name="optimized p95" fill={c.c2} radius={[4, 4, 0, 0]} maxBarSize={22} />
+              <Bar isAnimationActive={false} dataKey="baseline_dense_p95" name="baseline dense p95" fill={c.c1} radius={[4, 4, 0, 0]} maxBarSize={22} />
+              <Bar isAnimationActive={false} dataKey="optimized_p50" name="optimized p50" fill={c.c3} radius={[4, 4, 0, 0]} maxBarSize={22} />
+              <Bar isAnimationActive={false} dataKey="optimized_p95" name="optimized p95" fill={c.c2} radius={[4, 4, 0, 0]} maxBarSize={22} />
             </BarChart>
           </ResponsiveContainer></div>
         </ChartCard>
@@ -239,7 +239,7 @@ function Benchmarks() {
                 <XAxis dataKey="strategy" {...axisProps(c.axis)} angle={-30} textAnchor="end" interval={0} height={40} />
                 <YAxis {...axisProps(c.axis)} width={48} />
                 <RTooltip content={<ChartTooltipBox unit=" MB" />} cursor={{ fill: c.grid, opacity: 0.4 }} />
-                <Bar dataKey="peak_rss_mb" name="peak RSS" fill={c.c1} radius={[4, 4, 0, 0]} maxBarSize={22} />
+                <Bar isAnimationActive={false} dataKey="peak_rss_mb" name="peak RSS" fill={c.c1} radius={[4, 4, 0, 0]} maxBarSize={22} />
               </BarChart>
             </ResponsiveContainer></div>
             <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[11px]">
@@ -262,8 +262,8 @@ function Benchmarks() {
                 <XAxis dataKey="users" {...axisProps(c.axis)} />
                 <YAxis {...axisProps(c.axis)} width={48} />
                 <RTooltip content={<ChartTooltipBox unit=" ms" />} cursor={{ stroke: c.grid }} />
-                <Line dataKey="p50_ms" name="p50" stroke={c.c3} strokeWidth={2} dot={{ r: 3 }} />
-                <Line dataKey="p95_ms" name="p95" stroke={c.c2} strokeWidth={2} dot={{ r: 3 }} />
+                <Line isAnimationActive={false} dataKey="p50_ms" name="p50" stroke={c.c3} strokeWidth={2} dot={{ r: 3 }} />
+                <Line isAnimationActive={false} dataKey="p95_ms" name="p95" stroke={c.c2} strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer></div>
             <p className="mt-2 text-[11px] text-muted-foreground">Throughput: {data.concurrency.retrieval.map((r) => `${r.users}u ${r.rps.toFixed(1)}/s`).join(' · ')} — flat because the single reranker serialises requests.</p>

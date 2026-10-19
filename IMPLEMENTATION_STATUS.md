@@ -1,32 +1,61 @@
 # QueryDoc AI — Implementation Status
 
-Author: Raahul Sallagunta · Last updated: 2026-10-19 (full-stack upgrade, in progress)
+Author: Raahul Sallagunta · Last updated: 2026-10-19
 
-## Full-stack upgrade (React + FastAPI)
+Final evidence-linked verdicts: `results/acceptance/ACCEPTANCE.md` and
+`docs/RESUME_CLAIM_VALIDATION.md`.
 
-| Area | Status | Notes |
+## Phase 1 — RAG engine (complete)
+
+| Area | Status | Evidence |
 |---|---|---|
-| Repo restructure (backend/, frontend/) | Done | RAG engine preserved as `backend/querydoc`; Streamlit removed |
-| FastAPI API v1 (documents, chat, SSE stream, conversations, analytics, settings, health) | Done | Verified live with curl: upload → background index → stream → cancel → follow-up |
-| SQLAlchemy + SQLite + Alembic | Done | migration `bd60d90d22a9`, runs on startup |
-| Background ingestion worker, reindex, reconciliation | Done | |
-| Engine: answer_stream, cancellable generation, follow-up history | Done | 97 engine tests pass |
-| React frontend: design system, shell, 6 pages, PDF viewer, analytics, settings | Done | `npm run build` + `tsc` clean; verified in browser (mobile width): stream, citation → highlighted page |
-| Frontend tests (Vitest + RTL + axe) | Done | 22 passing |
-| Backend API tests (pytest + HTTPX) | **TODO** | `backend/tests/api/` is empty |
-| Playwright E2E (upload → index → ask → stream → cite → reload → delete) | **TODO** | `@playwright/test` installed, no specs yet |
-| Desktop/tablet/light-theme visual QA + README screenshots | **TODO** | only mobile-width browser checks done |
-| API end-to-end latency benchmark (`results/api_e2e`) | **TODO** | engine benchmarks from phase 1 remain valid |
-| Scripts: `scripts/dev.sh` (both servers), prod build serving | Partial | run_backend.sh / run_frontend.sh exist; FastAPI serves `frontend/dist` when built |
-| Docs update for full-stack architecture (guide, README, API, SSE, React) | **TODO** | docs still describe the Streamlit UI |
-| Acceptance script update for new criteria | **TODO** | |
+| PDF ingestion (PyMuPDF), cleaning, scanned/blank detection | Done | engine unit/integration tests |
+| Chunking (fixed / recursive / sentence, page ranges) | Done | `results/relevance` sweep |
+| Batched embeddings + cache | Done | `results/embeddings` |
+| FAISS index, persistence, filtering, delete | Done | unit tests, `results/retrieval_latency` |
+| Hybrid retrieval, dedup, MMR, cross-encoder rerank | Done | `results/relevance` |
+| Local HF generation (Qwen2.5-1.5B default) | Done | `results/generation` |
+| Citation verification + attribution | Done | unit + e2e tests |
+| Benchmarks (relevance, latency GPU/CPU, memory, concurrency, generation, ingestion) | Done | `results/*` |
 
-## Run (development)
+## Phase 2 — Full-stack upgrade (complete)
+
+| Area | Status | Evidence |
+|---|---|---|
+| Monorepo: `backend/` (FastAPI + engine), `frontend/` (React) | Done | repository |
+| Streamlit removed as a runtime dependency | Done | `backend/pyproject.toml` |
+| REST API v1 + OpenAPI (documents, chat, SSE, conversations, analytics, settings, health) | Done | `docs/API.md`, 22 API tests |
+| SQLAlchemy + SQLite (WAL) + Alembic migrations | Done | migration `bd60d90d22a9` |
+| Background ingestion worker, progress, re-index, restart reconciliation | Done | API tests |
+| SSE streaming with disconnect cancellation; follow-up history; regenerate | Done | API + Playwright tests |
+| React frontend: design system, 6 pages, three-panel chat, PDF viewer, analytics, settings | Done | build, Vitest, Playwright |
+| Frontend unit/component tests incl. axe | Done | 22 Vitest tests |
+| Playwright E2E (real stack, real models) | Done | 10 functional tests |
+| Visual QA: desktop/tablet/mobile × dark/light + states | Done | 12 visual tests, `docs/images/ui/` |
+| HTTP API end-to-end latency benchmark | Done | `results/api_e2e` |
+| Startup scripts (setup, dev, prod, tests), CI for both apps | Done | `scripts/`, `.github/workflows/ci.yml` |
+| Documentation updated for the full stack | Done | `docs/` |
+| Acceptance script for the new definition of done | Done | `scripts/acceptance.py` |
+
+Latest full run (`./scripts/test_all.sh`): backend 119 passed (incl. real-LLM e2e), Vitest 22 passed, frontend build OK, Playwright 22 passed.
+
+## Not done / out of scope
+
+- Docker Compose — intentionally not provided (macOS containers cannot use the Apple GPU).
+- Authentication, multi-tenancy, TLS — local single-user mode only.
+- OCR path untested; Linux/CUDA and non-Chromium browsers untested; CI workflow written but not run (no remote yet).
+- Generation timeouts at 10–20 concurrent generation users under memory pressure — observed, not root-caused.
+- License not chosen (author decision).
+
+## Run
+
 ```bash
-./scripts/run_backend.sh     # http://127.0.0.1:8000/api/docs
-./scripts/run_frontend.sh    # http://127.0.0.1:5173 (Node 22, see frontend/.nvmrc)
+./scripts/setup.sh --with-models   # once
+./scripts/dev.sh                   # API :8000 + UI :5173
+./scripts/start_prod.sh            # one process on :8000
+./scripts/test_all.sh              # all tests
 ```
 
-## Known issues
-- Project lives in `querydoc-ai.nosync` (symlink `querydoc-ai`) to stop iCloud eviction; not iCloud-backed.
-- Phase-1 measured results and caveats: see docs/PERFORMANCE_REPORT.md.
+## Environment notes
+- The project folder is `querydoc-ai.nosync` (symlink `querydoc-ai`) so iCloud does not evict files; it is not iCloud-backed — push to a git remote.
+- Frontend tooling requires Node 22 (`frontend/.nvmrc`).

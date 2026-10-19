@@ -2,192 +2,215 @@
 
 **Project:** QueryDoc AI · **Author:** Raahul Sallagunta
 
-QueryDoc AI is a single-process, local-first application. All models run on the
-user's machine; there is no network dependency after the one-time model download.
+QueryDoc AI is a local-first, single-machine application: a React single-page app talks to
+a FastAPI service that owns the RAG engine (PyMuPDF → chunking → SentenceTransformer
+embeddings → FAISS → hybrid retrieval + reranking → local Hugging Face LLM → citation
+verification). Nothing leaves the machine after the one-time model download.
 
-## 1. High-level view
+## 1. System overview
 
 ```mermaid
 flowchart LR
-    U[User] -->|upload PDFs, ask questions| UI[Streamlit UI<br/>app/main.py]
-    UI --> SVC[QueryDocService<br/>services/rag_service.py]
-    subgraph Ingestion
-        V[Validate + extract<br/>ingestion/pdf_loader.py] --> CL[Clean text<br/>ingestion/text_cleaning.py]
-        CL --> CH[Chunk + page ranges<br/>chunking/chunkers.py]
-        CH --> EM[Batched embeddings<br/>embeddings/embedder.py]
+    subgraph Browser
+      UI[React SPA<br/>TypeScript · Tailwind · shadcn/ui]
+      Q[TanStack Query cache]
+      PDF[PDF.js worker<br/>react-pdf]
+      UI <--> Q
+      UI --> PDF
     end
-    subgraph Query
-        RET[Retriever<br/>retrieval/retriever.py] --> PR[Prompt builder<br/>generation/prompts.py]
-        PR --> LLM[Local LLM<br/>generation/llm.py]
-        LLM --> CIT[Citation verifier<br/>citations/citations.py]
+    subgraph Server["FastAPI process (uvicorn)"]
+      API[REST /api/v1<br/>Pydantic schemas]
+      SSE[SSE stream bridge]
+      W[Ingestion worker<br/>thread pool]
+      ENG[EngineManager → QueryDocService]
+      DB[(SQLite · SQLAlchemy<br/>Alembic)]
+      API --> ENG
+      SSE --> ENG
+      API --> W --> ENG
+      API <--> DB
+      W --> DB
+      SSE --> DB
     end
-    SVC --> V
-    EM --> VS[(FAISS store<br/>vectorstore/faiss_store.py)]
-    SVC --> RET
-    RET <--> VS
-    VS <--> DISK[(data/workspace<br/>index · PDFs · registry · cache)]
-    CIT --> UI
+    subgraph Engine["RAG engine (backend/querydoc)"]
+      ING[PyMuPDF extract → clean → chunk]
+      EMB[MiniLM embeddings]
+      IDX[(FAISS + JSONL metadata<br/>checksummed)]
+      RET[Dense + BM25 → RRF → dedup → cross-encoder]
+      LLM[Qwen2.5 · Transformers · MPS/CPU]
+      CIT[Citation verifier]
+    end
+    Q -- fetch JSON --> API
+    UI -- fetch + ReadableStream --> SSE
+    PDF -- GET /documents/id/file --> API
+    ENG --> ING --> EMB --> IDX
+    ENG --> RET --> IDX
+    ENG --> LLM --> CIT
 ```
 
-## 2. Components and responsibilities
-
-| Module | Responsibility | Key types / functions |
+| Layer | Location | Responsibility |
 |---|---|---|
-| `config.py` | Typed settings from env/`.env` (`QUERYDOC_*`), device resolution | `Settings`, `get_settings`, `resolve_device` |
-| `ingestion/pdf_loader.py` | Validate PDF bytes, extract per-page text, detect blank/scanned pages, stable ids | `extract_pdf`, `ExtractedDocument`, `PageText`, `sanitize_filename` |
-| `ingestion/text_cleaning.py` | Unicode/whitespace normalisation, de-hyphenation, soft-wrap reflow | `clean_text` |
-| `chunking/chunkers.py` | Fixed / recursive / sentence chunking with page-range metadata | `chunk_document`, `ChunkingConfig`, `Chunk`, `joined_text` |
-| `embeddings/embedder.py` | SentenceTransformer wrapper: batched, normalised, cached, thread-safe | `Embedder`, `EmbeddingCache`, `EmbeddingStats` |
-| `vectorstore/faiss_store.py` | FAISS index + metadata, filtering, delete, atomic checksummed persistence, RW lock | `FaissVectorStore`, `SearchHit`, `RWLock` |
-| `retrieval/retriever.py` | Dense search, BM25 + RRF, dedup, MMR, cross-encoder rerank, per-stage timings | `Retriever`, `RetrievalConfig`, `BM25Index`, `Reranker` |
-| `generation/prompts.py` | Grounding rules, delimited untrusted sources, token budget | `build_prompt`, `SYSTEM_PROMPT` |
-| `generation/llm.py` | Load HF causal LM once, stream/generate, OOM handling | `LocalLLM`, `GenerationParams`, `GenerationResult` |
-| `citations/citations.py` | Map `[S#]` tags to chunks, reject invalid ones, score support, status | `verify_answer`, `CitationReport` |
-| `services/rag_service.py` | Orchestration, resource lifecycle, insufficient-evidence gate, fallbacks | `QueryDocService`, `RAGResponse`, `IngestReport` |
-| `services/concurrency.py` | Admission control for generation | `GenerationGate` |
-| `services/registry.py` | Persistent document registry (JSON) | `DocumentRegistry`, `DocumentRecord` |
-| `evaluation/relevance.py` | Evidence-span relevance judgments and IR metrics | `GroundTruth`, `score_ranking`, `bootstrap_ci` |
-| `evaluation/synthetic.py` | Deterministic PDFs for tests and scale benchmarks | `make_synthetic_pdf` |
-| `app/main.py` | Streamlit UI (workspace, chat, source explorer, performance) | `get_service` (`st.cache_resource`) |
+| Presentation | `frontend/src/pages`, `components`, `features` | Pages, design system, interaction, accessibility |
+| Client data | `frontend/src/services/queries.ts`, `lib/api.ts`, `lib/sse.ts`, `hooks/use-chat-stream.ts` | Server state cache, polling, SSE parsing, optimistic updates |
+| HTTP | `backend/app/api/v1/*`, `app/schemas/api.py`, `app/core/errors.py` | Routing, validation, error contract, timeouts, CORS, request ids |
+| Application services | `backend/app/services/*` | Document lifecycle, conversation scoping/history, settings validation, analytics |
+| Background work | `backend/app/workers/ingestion.py` | Bounded thread pool for PDF processing with progress |
+| Engine bridge | `backend/app/rag/engine.py` | Owns the single `QueryDocService`, applies runtime settings, model status |
+| Persistence | `backend/app/models`, `app/db`, `backend/alembic` | Documents, conversations, messages, settings, telemetry |
+| RAG engine | `backend/querydoc/*` | Ingestion, chunking, embeddings, FAISS, retrieval, generation, citations, evaluation |
 
-## 3. PDF ingestion flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant UI as Streamlit
-    participant S as QueryDocService
-    participant L as pdf_loader
-    participant C as chunkers
-    participant E as Embedder
-    participant F as FaissVectorStore
-    participant D as Disk
-    UI->>S: ingest(bytes, filename, chunking, batch_size)
-    S->>S: sha256 → registry lookup (duplicate?)
-    S->>L: extract_pdf(bytes)
-    L->>L: size / magic / open / encrypted / page limit checks
-    loop every page
-        L->>L: horizontal-line text → clean_text → empty/scanned flags
-    end
-    L-->>S: ExtractedDocument(pages, doc_id, diagnostics)
-    S->>C: chunk_document(doc, cfg)
-    C-->>S: [Chunk(text, page_start, page_end, char_start)]
-    S->>E: embed_texts(texts, batch_size)
-    E->>E: dedup by hash → cache lookup → mini-batches into preallocated array
-    E-->>S: float32 (n × 384), L2-normalised
-    S->>F: add(chunks, vectors)  [write lock]
-    S->>D: documents/<doc_id>.pdf, index/ (atomic swap), embedding cache, documents.json
-    S-->>UI: IngestReport(record, stage timings, throughput, RSS)
-```
-
-## 4. Question-answering flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant UI as Streamlit
-    participant S as QueryDocService
-    participant R as Retriever
-    participant F as FAISS
-    participant B as BM25
-    participant X as CrossEncoder
-    participant G as GenerationGate
-    participant M as LocalLLM
-    participant V as verify_answer
-    UI->>S: answer(question, retrieval cfg, generation params)
-    S->>R: retrieve(question)
-    R->>R: clean query, embed (MiniLM)
-    R->>F: top fetch_k by inner product (doc filter via IDSelector)  [read lock]
-    R->>B: top fetch_k by BM25
-    R->>R: Reciprocal Rank Fusion → dedup overlapping chunks
-    R->>X: score top rerank_k (query, passage) pairs
-    R-->>S: top_k chunks + per-stage timings + max dense score
-    alt max dense score < min_relevance_score
-        S-->>UI: "insufficient evidence" (LLM not called)
-    else LLM unavailable
-        S-->>UI: retrieval-only response with passages
-    else
-        S->>G: acquire slot (bounded queue, timeout)
-        S->>M: prompt = rules + <source id=S1..Sk> + question
-        Note over S,M: instruction-like sentences in sources are redacted first
-        M-->>S: answer text with [S#] tags (+ TTFT, tokens/s)
-        S->>V: verify tags ⊆ prompt sources ∩ allowed docs ∩ index; support per sentence
-        V-->>S: cleaned answer, citations (file, pages, chunk, excerpt), status
-        S-->>UI: RAGResponse(answer, status, citations, timings)
-    end
-    UI->>UI: "Open page" → render PDF page with highlighted excerpt
-```
-
-## 5. Data flow and storage
+## 2. Frontend architecture
 
 ```mermaid
 flowchart TB
-    PDF[PDF bytes] -->|sha256| ID[doc_id = hash prefix]
-    PDF --> PAGES[cleaned page texts]
-    PAGES --> JOINED[joined text + page offset table]
-    JOINED --> CHUNKS[chunks: text, page_start..page_end, char_start, chunk_id]
-    CHUNKS --> VEC[384-d float32 unit vectors]
-    VEC --> IDX[(index/index.faiss)]
-    CHUNKS --> META[(index/chunks.jsonl)]
-    IDX & META --> MAN[(index/manifest.json<br/>model, dim, counts, sha256)]
-    PDF --> STORE[(documents/doc_id.pdf)]
-    ID --> REG[(documents.json registry)]
-    VEC --> CACHE[(embedding_cache/model.npz)]
+    main[main.tsx] --> P[Providers<br/>QueryClient · Theme · MotionConfig · Tooltip · Toaster]
+    P --> R[React Router]
+    R --> Shell[AppShell<br/>collapsible sidebar · mobile drawer]
+    Shell --> D[Overview] & L[Library] & C[Chat] & V[Viewer] & A[Analytics] & S[Settings]
+    L --> DZ[UploadDropzone] & DC[DocumentCard → PdfThumbnail]
+    C --> SP[ScopePicker] & MSG[UserBubble / AssistantMessage → CitationChip] & CMP[Composer] & EV[EvidencePanel → PdfViewer]
+    V --> PV[PdfViewer] & DCHAT[DocumentChat]
+    A --> CH[Recharts cards · live vs benchmark]
+    S --> F[React Hook Form + Zod schema]
 ```
 
-`data/workspace/` (configurable via `QUERYDOC_DATA_DIR`):
+- **Routing:** `/` overview, `/library`, `/chat`, `/chat/:conversationId`, `/documents/:documentId?page=&q=`, `/analytics`, `/settings`. Heavy pages (PDF.js, Recharts) are code-split with `React.lazy`.
+- **State:** server state lives in TanStack Query (`services/queries.ts`); UI state stays local (`useState`) or in `localStorage` (theme, sidebar and evidence-panel collapse). No global store is needed.
+- **Streaming:** `useChatStream` POSTs to `/chat/stream`, parses SSE from `fetch`'s `ReadableStream` (`lib/sse.ts`), and holds `{phase, question, text, sources, error}`. On `meta` a new conversation's URL is set; on `done` the verified message is written into the cached conversation and the cache is invalidated. `AbortController.abort()` implements **Stop**.
+- **PDF viewer:** `react-pdf` renders one page at a time on a canvas with a text layer; the PDF.js worker parses off the main thread. Search scans `getTextContent()` per page. Citation highlighting marks only text-layer spans whose text lies inside the verified passage, and only when the page actually contains it; otherwise the UI says so instead of guessing.
+- **Design system:** CSS variables (OKLCH graphite neutrals, indigo-violet accent, status colours, chart palette) in `src/index.css`, consumed by Tailwind v4 `@theme`; dark is the default (`html.dark`), light is complete; `prefers-reduced-motion` disables transitions; focus rings use `:focus-visible`.
 
-| Path | Format | Purpose | Safety |
-|---|---|---|---|
-| `documents.json` | JSON | registry: filename, title, hash, pages, chunks, chunking config, timings | atomic replace |
-| `documents/<doc_id>.pdf` | PDF | page rendering for citations | path built from validated hex id only |
-| `index/index.faiss` | FAISS binary | vectors + ids | SHA-256 in manifest |
-| `index/chunks.jsonl` | JSON lines | chunk metadata by vector id | SHA-256 in manifest |
-| `index/manifest.json` | JSON | model name, dim, index type, counts, checksums | validated before use |
-| `embedding_cache/<model>.npz` | NumPy archive | text-hash → vector | loaded with `allow_pickle=False`, model/dim checked |
-
-No pickle files are written or read anywhere.
-
-## 6. Model loading and lifecycle
-
-| Model | Size | Loaded | Device | Lifetime |
-|---|---|---|---|---|
-| all-MiniLM-L6-v2 (embedder) | ~90 MB | at service start | CPU (configurable) | process |
-| ms-marco-MiniLM-L-6-v2 (reranker) | ~90 MB | first reranked query | `auto` (MPS/CUDA/CPU) | process |
-| Qwen2.5-1.5B-Instruct (LLM, default) | ~3 GB fp16 | first generated answer | `auto` | process |
-
-All three load **local-first** (`config.load_local_first`: `local_files_only=True`, network only if not cached — a stalled Hub request once blocked app start-up). `QueryDocService` owns all three; Streamlit keeps one service per server process via
-`@st.cache_resource`, so no rerun or new browser session reloads a model. If the
-LLM fails to load (missing weights offline, out of memory), the failure is
-remembered and every answer degrades to retrieval-only with a visible note.
-
-## 7. Concurrency architecture
+## 3. Backend architecture
 
 ```mermaid
-flowchart LR
-    subgraph Threads
-        Q1[query 1] & Q2[query 2] & Qn[query n]
-        I1[ingest]
+flowchart TB
+    subgraph FastAPI
+      MW[Middleware: request id · JSON access log · CORS]
+      DOCS[documents router]
+      CHAT[chat router]
+      MISC[conversations · analytics · settings · health]
+      EH[exception handlers → error contract]
     end
-    Q1 & Q2 & Qn -->|read lock, concurrent| IDX[(FAISS + metadata)]
-    I1 -->|embed outside lock| EMB[Embedder]
-    I1 -->|write lock: add + atomic save| IDX
-    Q1 & Q2 & Qn -->|short lock per encode call| EMB
-    Q1 & Q2 & Qn -->|short lock per batch| RR[Reranker]
-    Q1 & Q2 & Qn --> GATE{GenerationGate<br/>active ≤ 1, queue ≤ 8, timeout 120 s}
-    GATE -->|slot| LLM[LocalLLM lock]
-    GATE -->|queue full| ERR[QueueFullError → user retries]
+    MW --> DOCS & CHAT & MISC
+    DOCS --> DS[services.documents] --> WK[IngestionWorker]
+    CHAT --> CS[services.chat] --> EM[EngineManager]
+    MISC --> SS[services.settings] & AS[services.analytics]
+    WK --> EM
+    SS --> EM
+    DS & CS & SS & AS --> SQL[(SQLite)]
+    EM --> QS[QueryDocService]
 ```
 
-- **Index:** writer-preferring readers–writer lock. FAISS searches run in parallel; an add/delete waits for in-flight searches and blocks new ones briefly. Saves write a temp directory then `os.replace`, so a crash mid-save never corrupts the live index.
-- **Tokenizers/models:** HF fast tokenizers raise "Already borrowed" if used from two threads at once, so each `encode`/`predict` call holds a short lock. Native kernels release the GIL.
-- **Generation:** one model instance runs one `generate()` at a time. A generating request takes its `GenerationGate` slot *before* retrieval, so the queue bound (8) and timeout (120 s) cover the whole request; overflow fails fast with `QueueFullError`. Retrieval-only requests are not gated.
-- **Shared GPU:** Apple MPS aborts the process when two threads submit work concurrently (observed: reranker + LLM). `querydoc/devices.py::device_lock` is one re-entrant lock per accelerator that the embedder, reranker and LLM all take around forward passes. Consequence: during a generation, reranking for other requests waits.
-- **Ingestion vs queries:** embedding (the slow part) runs outside any lock; only the in-memory add and the save are exclusive.
+- **Lifespan** (`app/main.py`): run Alembic migrations → open SQLite (WAL) → build `EngineManager` → apply persisted settings → reconcile DB with the FAISS index (import, re-queue interrupted jobs, mark missing) → optional background model warm-up.
+- **Event loop discipline:** synchronous endpoints run in Starlette's threadpool; CPU work (PDF parsing, embeddings) runs in the ingestion pool; generation runs in a dedicated thread per stream. Nothing heavy executes on the event loop.
+- **Production-style build:** when `frontend/dist` exists, FastAPI also serves the SPA (static assets + client-route fallback), so one process serves UI and API (`scripts/start_prod.sh`).
 
-## 8. Deployment shape and its limits
+## 4. Document ingestion sequence
 
-Single machine, single process, local disk. This is the right shape for a personal
-or small-team tool; it is not multi-tenant (no auth, one shared index), and it does
-not scale horizontally. See `docs/PROJECT_COMPLETE_GUIDE.md` Part H for the path to
-a FastAPI service with per-user indexes and an external vector database.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as React (Library)
+    participant API as POST /documents/upload
+    participant DB as SQLite
+    participant W as IngestionWorker
+    participant E as QueryDocService
+    UI->>API: multipart files (XHR with upload progress)
+    API->>API: size limit while streaming, .pdf, %PDF magic, sha256 → id, duplicate?
+    API->>DB: insert document(status=queued) and commit
+    API->>W: submit(id)
+    API-->>UI: 202 {documents, errors}
+    loop every 0.8 s while busy
+      UI->>API: GET /documents (TanStack Query polling)
+    end
+    W->>DB: status=processing
+    W->>E: ingest(bytes, progress=cb)
+    E->>E: PyMuPDF pages → clean → chunk → embed → FAISS add (write lock) → atomic save
+    E-->>W: progress(stage, fraction)
+    W->>DB: stage/progress (throttled)
+    W->>DB: status=ready, pages, chunks, timings
+    UI->>UI: card shows Ready; polling stops
+```
+
+## 5. Question answering (SSE) sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as React (Chat)
+    participant API as POST /chat/stream
+    participant DB as SQLite
+    participant T as worker thread
+    participant G as GenerationGate
+    participant E as QueryDocService
+    UI->>API: {message, conversation_id?, document_ids}
+    API->>DB: validate scope, create conversation + user message (history for follow-ups)
+    API-->>UI: event: meta
+    API->>T: start
+    T->>G: acquire slot (≤1 active, ≤8 queued, 120 s) or 429-coded error
+    T->>E: answer_stream(question, cfg, history, cancel)
+    E-->>T: ("retrieval", passages)
+    T-->>API: queue.put (call_soon_threadsafe)
+    API-->>UI: event: retrieval → evidence panel fills
+    loop tokens
+      E-->>T: ("token", text)
+      API-->>UI: event: token → streaming bubble
+    end
+    E-->>T: ("final", verified response)
+    T->>DB: assistant message + citations + telemetry
+    API-->>UI: event: done
+    Note over UI,API: UI aborts → is_disconnected / CancelledError → cancel.set() →<br/>StoppingCriteria stops generation; message saved as "cancelled"
+```
+
+## 6. Data and storage
+
+| Store | Content | Safety |
+|---|---|---|
+| `data/workspace/querydoc.db` (SQLite, WAL) | documents (lifecycle, timings), conversations, messages (citations, sources, timings, feedback), settings, query telemetry | Alembic-managed schema; FK cascade for messages |
+| `data/workspace/index/` | `index.faiss`, `chunks.jsonl`, `manifest.json` (model, dim, counts, SHA-256) | atomic directory swap; validated on load; no pickle |
+| `data/workspace/documents/<id>.pdf` | stored PDFs for viewing | path built only from a validated hex id |
+| `data/workspace/uploads/` | uploads awaiting indexing | removed after success or validation failure |
+| `data/workspace/embedding_cache/` | text-hash → vector (`.npz`) | `allow_pickle=False` |
+| `~/.cache/huggingface` | model weights | loaded `local_files_only` first |
+
+```mermaid
+erDiagram
+    DOCUMENTS { string id PK "sha256 prefix" string filename string status float progress int page_count int chunk_count json timings_ms }
+    CONVERSATIONS { string id PK string title json document_ids }
+    MESSAGES { string id PK string conversation_id FK string role text content string status json citations json sources json timings_ms int feedback }
+    QUERY_LOGS { int id PK string mode float retrieval_ms float generation_ms float total_ms }
+    SETTINGS { string key PK json value }
+    CONVERSATIONS ||--o{ MESSAGES : contains
+```
+
+## 7. Concurrency model
+
+- **FAISS index:** writer-preferring readers–writer lock — concurrent searches, exclusive add/delete/save.
+- **Tokenizers:** short per-model locks (HF fast tokenizers are not re-entrant).
+- **GPU (MPS):** one process-wide re-entrant lock per accelerator shared by embedder, reranker and LLM (two threads submitting Metal work crashed the process).
+- **Generation admission:** `GenerationGate` taken at the start of a generating request (before retrieval) → bounded queue and timeout over the whole request; overflow returns `generation_queue_full` (429).
+- **Ingestion:** `ThreadPoolExecutor(max_workers=1)` by default; embedding happens outside the index lock so questions keep working during uploads; a document can only have one job at a time.
+- **Database:** short sessions per unit of work; SQLite WAL + busy timeout for the worker thread and request threads.
+
+## 8. Security boundaries
+
+| Boundary | Control |
+|---|---|
+| Upload → server | streamed size limit, extension + magic-byte checks, PyMuPDF open/encryption checks, page limit |
+| Filenames | sanitised for display only; never used as filesystem paths |
+| Ids in URLs | validated 16-hex / 32-char ids before any lookup |
+| Document text → LLM | delimited untrusted `<source>` blocks, defused delimiters, instruction-like sentences redacted, rules in the system prompt |
+| LLM output → user | citations validated against retrieved chunks, allowed scope and the index; support scored; status badge |
+| Browser → API | CORS restricted to configured origins; no cookies or credentials; local single-user only |
+| Persistence | no pickle; checksummed index; migrations |
+
+**Not provided:** authentication, authorisation, per-user isolation, rate limiting per client, TLS. The app must not be exposed beyond localhost.
+
+## 9. Deployment shapes
+
+| Mode | Command | Processes |
+|---|---|---|
+| Development | `./scripts/dev.sh` | uvicorn :8000 + Vite :5173 (HMR, `/api` proxied) |
+| Production-style local | `./scripts/start_prod.sh` | one uvicorn serving built SPA + API on :8000 |
+| Tests | `./scripts/test_all.sh` | pytest (TestClient), Vitest (jsdom), Playwright (own server on :8300) |
+
+Docker Compose is intentionally not provided: the models rely on the host's Apple GPU (MPS), which containers on macOS cannot use.

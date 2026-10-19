@@ -20,7 +20,6 @@ import tempfile
 from pathlib import Path
 
 from common import EVAL_SET, environment, latency_summary, load_corpus, write_results
-
 from querydoc.chunking.chunkers import joined_text
 from querydoc.config import Settings
 from querydoc.evaluation.relevance import GroundTruth, load_eval_set

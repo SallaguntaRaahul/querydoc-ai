@@ -19,7 +19,9 @@ the ones installed and measured (`results/*/results.json → environment.package
 | Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` | bge-reranker-base, Cohere Rerank, ColBERT | Small (22 M), strong MS MARCO reranker, local | Latency budget allows a larger reranker or domain shift hurts quality |
 | Generation | HF Transformers + `Qwen/Qwen2.5-1.5B-Instruct` (Apache-2.0; 0.5B as low-memory option) | Qwen2.5-3B, Llama-3.2-1B/3B (gated license), Phi-3.5-mini, llama.cpp/GGUF, Ollama, vLLM | Ungated, permissive license, measured 84% vs 48% answer accuracy over 0.5B at p50 1.9 s on MPS | Answer quality matters more than latency, or a GPU server is available (vLLM) |
 | Tensor runtime | PyTorch 2.x (CPU + Apple MPS) | ONNX Runtime, MLX, llama.cpp | Required by Transformers and SentenceTransformers; MPS gives free GPU on Apple silicon | Need int4/int8 quantized CPU inference (llama.cpp / ONNX) |
-| UI | Streamlit | FastAPI + React, Gradio, Chainlit | Fastest path to a usable, Python-only app with caching primitives (`st.cache_resource`) | Multi-user auth, custom UX or horizontal scaling is required |
+| UI | React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui (Radix) | Streamlit (phase 1), Next.js, Vue/Svelte, Gradio | Full control of a three-panel streaming chat, PDF viewer and dashboard; typed API contract; accessible primitives | Server rendering or SEO become requirements (Next.js) |
+| API | FastAPI + Pydantic + Uvicorn, SSE | Flask, Django REST, Litestar, WebSockets | Async I/O for streaming, Pydantic validation shared with OpenAPI, same language as the engine | Many concurrent users or multi-node deployment (add a gateway/queue) |
+| App database | SQLite + SQLAlchemy 2 + Alembic | PostgreSQL, TinyDB/JSON files | Zero-ops, transactional, migratable; WAL handles one writer + many readers | Multiple users or processes → PostgreSQL |
 | Config | pydantic-settings | dynaconf, plain env vars | Typed, validated, `.env` support, `QUERYDOC_` prefix | — |
 | Data analysis | NumPy, Pandas | Polars | NumPy is the embedding/FAISS interchange format; Pandas renders tables in Streamlit | — |
 | Testing | pytest, Ruff, mypy, GitHub Actions | unittest, flake8+black, pyright | Standard Python tooling | — |
@@ -100,7 +102,9 @@ the ones installed and measured (`results/*/results.json → environment.package
 - **Device policy:** embeddings and reranker default to CPU (deterministic, thread-safe, and fast enough at 22 M params); the LLM defaults to `auto` → CUDA, then Apple MPS, then CPU (`config.resolve_device`).
 - **macOS caveat:** PyTorch and FAISS wheels each bundle `libomp`. Loading both with multi-threaded OpenMP segfaults (FAISS first) or deadlocks (torch first). `querydoc/__init__.py` sets `OMP_NUM_THREADS=1` before either loads; `Embedder` then raises torch's intra-op pool with `torch.set_num_threads(4)`; `faiss_store.py` imports torch before faiss. Measured effect: 52 → 102 chunks/s versus leaving torch single-threaded.
 
-## Streamlit
+## Streamlit (phase 1 — replaced)
+- **Status:** used for the first version; replaced by React + FastAPI in the full-stack upgrade. Kept here as a documented decision.
+- **Why it was replaced:** a script-rerun model makes token streaming, a persistent three-panel layout, a real PDF viewer, background ingestion with progress and a documented REST contract awkward; all sessions shared one process; styling options were limited.
 - **What:** Python-only reactive web UI framework; the script re-runs top-to-bottom on every interaction.
 - **Key pattern:** `@st.cache_resource` holds one `QueryDocService` (embedding model, reranker, FAISS index, LLM) per server process, so reruns never reload models. Per-user state (chat history, selected citation) lives in `st.session_state`.
 - **Where:** `app/main.py`, `app/components/viewer.py`.
@@ -118,3 +122,61 @@ the ones installed and measured (`results/*/results.json → environment.package
 
 ## psutil
 - Process RSS for memory measurements (benchmarks and the Performance tab). RSS includes native allocations from PyTorch/FAISS, which `tracemalloc` cannot see. Sampling at 5 ms is a lower bound on the true peak.
+
+
+---
+
+# Full-stack upgrade: frontend and API decisions
+
+## React 19 + TypeScript
+- **Why:** the product is interaction-heavy (streaming tokens, resizable panels, PDF canvas, charts, forms). React's component model and ecosystem (Radix, TanStack, react-pdf, Recharts) cover all of it; TypeScript catches contract drift between `backend/app/schemas/api.py` and `frontend/src/types/api.ts` at build time.
+- **Where:** `frontend/src/**` (pages, components, features, hooks).
+- **Alternatives:** Vue/Svelte (equally capable, smaller ecosystem for PDF/a11y primitives), Next.js (server rendering not needed for a local app and would add a Node server at runtime).
+- **Trade-off:** more code than Streamlit; requires Node for builds (not at runtime in production mode).
+
+## Vite
+- Dev server with HMR and an `/api` proxy (no CORS in development), Rollup-based production build with code splitting (PDF.js and Recharts load only on their pages). Chosen over webpack/CRA for speed and simplicity.
+
+## Tailwind CSS v4 + shadcn/ui + Radix UI
+- **Tailwind:** utility classes over design tokens defined once as CSS variables (`src/index.css`): OKLCH graphite neutrals, an indigo-violet accent, status and chart colours, dark/light pairs. Keeps spacing/typography consistent without a bespoke CSS architecture.
+- **shadcn/ui:** components are copied into the repo (`src/components/ui`) rather than installed, so they can be adjusted (e.g. clearer selected-toggle state, ScrollArea replaced where it broke text wrapping).
+- **Radix:** accessible primitives (focus management, keyboard support, ARIA) for dialogs, menus, popovers, selects, tabs, tooltips.
+- **Alternatives:** MUI/Chakra (heavier, harder to give a distinctive look), plain CSS modules (more work for the same consistency).
+
+## TanStack Query
+- Server-state cache: request de-duplication, background refetch, **conditional polling** (documents poll every 0.8 s only while something is processing), optimistic delete, cache writes from the SSE `done` event. Avoids a hand-written global store. Alternative: Redux Toolkit Query / SWR — similar; TanStack's polling and mutation APIs fit best.
+
+## React Router
+- URL-addressable state (`/chat/:conversationId`, `/documents/:id?page=12`) so conversations and cited pages can be reopened, bookmarked and reloaded.
+
+## react-pdf (PDF.js)
+- Renders pages to canvas with a selectable text layer, in a Web Worker. The text layer is what makes honest citation highlighting possible: only spans whose text is part of the verified passage are marked. Alternative: native browser viewer in an `<iframe>` (no control over navigation/highlighting), PDF.js directly (more boilerplate).
+- Requires Node ≥ 22.13 for tooling (pinned in `frontend/.nvmrc`).
+
+## Recharts
+- Declarative SVG charts for latency, quality, memory and concurrency. Colours come from the validated palette tokens; one y-axis per chart; animation disabled so every frame shows exact data.
+
+## Zod + React Hook Form
+- One schema (`features/settings/schema.ts`) mirrors the backend's validation (`SettingsModel`), giving instant client-side errors; the server re-validates and its field errors are mapped back onto the form.
+
+## Motion for React
+- Small entrance transitions only; wrapped in `MotionConfig reducedMotion="user"` and overridden by a global `prefers-reduced-motion` rule.
+
+## FastAPI + Pydantic + Uvicorn
+- **Why:** async request handling for long-lived SSE streams; Pydantic models are both validators and the OpenAPI schema (`/api/docs`); Python, so the RAG engine is imported directly with no RPC layer.
+- **Where:** `backend/app/main.py` (factory, lifespan, middleware, SPA serving), `app/api/v1/*`, `app/schemas/api.py`.
+- **Alternatives:** Flask (sync by default; streaming possible but clunkier), Django REST (heavier ORM/admin not needed), Node backend (would need a Python sidecar for models).
+
+## Server-Sent Events (vs WebSockets / polling)
+- Answers stream one way (server → client) over plain HTTP; SSE gives event types, works through the Vite proxy, and needs no extra protocol. The browser `EventSource` cannot POST, so the client reads the `fetch` body stream directly (`lib/sse.ts`). Disconnect is the cancellation signal. WebSockets would add bidirectional framing the product does not need.
+
+## SQLite + SQLAlchemy 2 + Alembic
+- Application state (documents' lifecycle, conversations, messages with citations, settings, telemetry) is relational and transactional; SQLite needs no server, WAL mode lets the ingestion thread write while requests read, Alembic versions the schema and runs on startup. The FAISS index and chunk metadata stay in the engine's checksummed files.
+
+## Background processing: thread pool (vs Celery/RQ)
+- A bounded `ThreadPoolExecutor` inside the API process is enough for one user and avoids running Redis/Celery. Progress is persisted, interrupted jobs are re-queued on restart. Revisit for multi-user/multi-node deployments.
+
+## Testing stack
+- **pytest + HTTPX TestClient** — API contract, SSE event order, cancellation, concurrency limits, security boundaries (real ingestion/FAISS/DB; deterministic stub LLM).
+- **Vitest + React Testing Library + vitest-axe** — components, form validation, API interactions with mocked `fetch`, theme, accessibility.
+- **Playwright** — real browser against a freshly started real stack (real models), plus visual QA screenshots at three viewports in both themes.

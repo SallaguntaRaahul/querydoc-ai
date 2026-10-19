@@ -20,7 +20,7 @@ from typing import Any
 import psutil
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "backend"))
 
 import querydoc  # noqa: E402,F401  (applies the macOS OpenMP guard before torch/faiss load)
 

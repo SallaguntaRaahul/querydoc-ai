@@ -1,124 +1,189 @@
 {
-  "generated_utc": "2026-10-19T19:52:55+00:00",
+  "generated_utc": "2026-10-19T21:47:52+00:00",
   "criteria": [
     {
-      "requirement": "PDF ingestion",
-      "target": "Works for 100+ pages",
+      "group": "Definition of done",
+      "requirement": "1. React frontend builds",
+      "target": "vite build succeeds",
       "status": "PASS",
-      "measured": "synthetic_100p.pdf: 100 pages in 1.8s, synthetic_200p.pdf: 200 pages in 3.5s, NIST.SP.800-37r2.pdf: 183 pages in 10.8s",
-      "evidence": "results/ingestion/results.json"
+      "measured": "built in 1.6 s",
+      "evidence": "results/app/launch.json"
     },
     {
-      "requirement": "Multiple PDFs",
-      "target": "Functional",
+      "group": "Definition of done",
+      "requirement": "2. FastAPI backend starts",
+      "target": "health OK, SPA + OpenAPI served",
       "status": "PASS",
-      "measured": "test_multi_document_isolation_and_delete: passed",
+      "measured": "healthy in 9.12 s; 15 API paths",
+      "evidence": "results/app/launch.json"
+    },
+    {
+      "group": "Definition of done",
+      "requirement": "3\u20134. Real PDF uploaded and indexed (incl. 183 pages)",
+      "target": "Playwright test passes",
+      "status": "PASS",
+      "measured": "upload: validation error, then two real PDFs index (including 183 pages): passed",
+      "evidence": "results/tests/playwright-junit.xml"
+    },
+    {
+      "group": "Definition of done",
+      "requirement": "5\u20137. Question retrieves evidence, local LLM answers, citation opens the page",
+      "target": "Playwright test passes",
+      "status": "PASS",
+      "measured": "ask a question: streamed answer with citations, open the cited page: passed",
+      "evidence": "results/tests/playwright-junit.xml"
+    },
+    {
+      "group": "Definition of done",
+      "requirement": "8. Conversations persist (follow-up, reload, history)",
+      "target": "Playwright test passes",
+      "status": "PASS",
+      "measured": "follow-up question, persistence after reload, reopen from history: passed",
+      "evidence": "results/tests/playwright-junit.xml"
+    },
+    {
+      "group": "Definition of done",
+      "requirement": "9. Settings work (validation + persistence)",
+      "target": "Playwright test passes",
+      "status": "PASS",
+      "measured": "settings: invalid input is blocked, valid change persists: passed",
+      "evidence": "results/tests/playwright-junit.xml"
+    },
+    {
+      "group": "Definition of done",
+      "requirement": "10. Analytics shows real data",
+      "target": "Playwright test passes",
+      "status": "PASS",
+      "measured": "analytics shows live telemetry and benchmark evidence: passed",
+      "evidence": "results/tests/playwright-junit.xml"
+    },
+    {
+      "group": "Definition of done",
+      "requirement": "Stop generation",
+      "target": "Playwright test passes",
+      "status": "PASS",
+      "measured": "stop a generation mid-stream: passed",
+      "evidence": "results/tests/playwright-junit.xml"
+    },
+    {
+      "group": "Definition of done",
+      "requirement": "Delete document and index entries",
+      "target": "Playwright test passes",
+      "status": "PASS",
+      "measured": "delete a document removes it and its index entries: passed",
+      "evidence": "results/tests/playwright-junit.xml"
+    },
+    {
+      "group": "Definition of done",
+      "requirement": "11. Automated tests \u2014 backend pytest",
+      "target": "0 failures, 0 errors",
+      "status": "PASS",
+      "measured": "119 tests, 0 failed, 0 errors, 0 skipped",
       "evidence": "results/tests/junit.xml"
     },
     {
-      "requirement": "Local embeddings",
-      "target": "Functional",
+      "group": "Definition of done",
+      "requirement": "11. Automated tests \u2014 frontend Vitest",
+      "target": "0 failures, 0 errors",
       "status": "PASS",
-      "measured": "11 strategies benchmarked",
-      "evidence": "results/embeddings/results.json"
+      "measured": "22 tests, 0 failed, 0 errors, 0 skipped",
+      "evidence": "results/tests/vitest-junit.xml"
     },
     {
-      "requirement": "FAISS indexing",
-      "target": "Functional",
+      "group": "Definition of done",
+      "requirement": "12. End-to-end tests (Playwright, real stack)",
+      "target": "all pass",
       "status": "PASS",
-      "measured": "test_store_add_search_filter_delete: passed",
-      "evidence": "results/tests/junit.xml"
+      "measured": "10/10 passed",
+      "evidence": "results/tests/playwright-junit.xml"
     },
     {
-      "requirement": "Persistent indexes",
-      "target": "Functional",
+      "group": "Definition of done",
+      "requirement": "13. Visual inspection (desktop/tablet/mobile \u00d7 dark/light, states)",
+      "target": "visual specs pass and screenshots captured",
       "status": "PASS",
-      "measured": "test_index_persists_across_restart: passed",
-      "evidence": "results/tests/junit.xml"
+      "measured": "12/12 visual checks; 33 screenshots",
+      "evidence": "docs/images/ui/"
     },
     {
-      "requirement": "Local Hugging Face LLM",
-      "target": "Functional",
+      "group": "Definition of done",
+      "requirement": "14. Benchmark results recorded",
+      "target": "all benchmark result files present",
       "status": "PASS",
-      "measured": "Qwen/Qwen2.5-0.5B-Instruct on mps; Qwen/Qwen2.5-1.5B-Instruct on mps",
-      "evidence": "results/generation/results.json"
+      "measured": "8/8: relevance, retrieval_latency, retrieval_latency_cpu, embeddings, concurrency, generation, ingestion, api_e2e",
+      "evidence": "results/"
     },
     {
-      "requirement": "Citation-grounded answers",
-      "target": "Tested",
+      "group": "Definition of done",
+      "requirement": "15. Documentation complete",
+      "target": "all required documents present",
       "status": "PASS",
-      "measured": "test_supported_question_answered_with_valid_citation: passed",
-      "evidence": "results/tests/junit.xml"
+      "measured": "all present",
+      "evidence": "docs/"
     },
     {
-      "requirement": "Retrieval latency",
-      "target": "p95 < 300 ms on 100+ page docs (optimized pipeline, warm)",
+      "group": "Definition of done",
+      "requirement": "16. Every resume claim has an evidence status",
+      "target": "claim table with statuses",
       "status": "PASS",
-      "measured": "worst p95 128 ms / p50 80 ms (nist_800-37r2_183p)",
-      "evidence": "results/retrieval_latency/results.json"
+      "measured": "15 verdicts in claim table",
+      "evidence": "docs/RESUME_CLAIM_VALIDATION.md"
     },
     {
-      "requirement": "Retrieval latency, CPU-only reranker",
-      "target": "p95 < 300 ms on 100+ page docs",
-      "status": "FAIL",
-      "measured": "worst p95 556 ms (nist_800-37r2_183p)",
-      "evidence": "results/retrieval_latency_cpu/results.json"
-    },
-    {
-      "requirement": "End-to-end answer latency (default LLM)",
-      "target": "< 300 ms (stretch; not a stated target)",
-      "status": "FAIL",
-      "measured": "p50 1.9 s, p95 4.4 s",
-      "evidence": "results/generation/results.json"
-    },
-    {
+      "group": "Performance targets",
       "requirement": "Context relevance improvement",
-      "target": ">= 40% relative (nDCG@5, held-out test split)",
+      "target": "\u2265 40% relative nDCG@5 (held-out test split)",
       "status": "PASS",
-      "measured": "0.578 -> 0.831 = +43.8% (CI95 +17..+91%); all 63 questions +36.7%",
+      "measured": "0.578 \u2192 0.831 = +43.8% (CI95 +17\u2026+91%); all 63: +36.7%",
       "evidence": "results/relevance/results.json"
     },
     {
-      "requirement": "Peak-memory reduction",
-      "target": ">= 35% peak RSS, batched streaming vs unbatched single pass",
+      "group": "Performance targets",
+      "requirement": "Retrieval latency, 100+ pages (GPU reranker)",
+      "target": "p95 < 300 ms",
       "status": "PASS",
-      "measured": "78.5% vs single pass; 52.8% vs batch-256; -0.8% vs library default batch-32",
+      "measured": "worst p95 128 ms, p50 80 ms (nist_800-37r2_183p)",
+      "evidence": "results/retrieval_latency/results.json"
+    },
+    {
+      "group": "Performance targets",
+      "requirement": "Retrieval latency, 100+ pages (CPU-only reranker)",
+      "target": "p95 < 300 ms",
+      "status": "FAIL",
+      "measured": "worst p95 556 ms, p50 274 ms (nist_800-37r2_183p)",
+      "evidence": "results/retrieval_latency_cpu/results.json"
+    },
+    {
+      "group": "Performance targets",
+      "requirement": "Peak-memory reduction",
+      "target": "\u2265 35% peak RSS (batched vs unbatched embedding)",
+      "status": "PASS",
+      "measured": "78.5% vs unbatched; 52.8% vs batch-256; -0.8% vs library default",
       "evidence": "results/embeddings/results.json"
     },
     {
-      "requirement": "Concurrent generation",
-      "target": "info: bounded admission control",
-      "status": "PASS",
-      "measured": "0 errors up to 5 users; 10u: {'QueueFullError': 3, 'GenerationTimeoutError': 3}, 20u: {'QueueFullError': 23, 'GenerationTimeoutError': 4}",
-      "evidence": "results/concurrency/results.json"
-    },
-    {
+      "group": "Performance targets",
       "requirement": "Concurrent retrieval",
-      "target": "Tested at multiple loads",
+      "target": "tested at \u2265 3 loads, 0 errors",
       "status": "PASS",
-      "measured": "1u: 12 rps p95 110 ms, 2u: 12 rps p95 198 ms, 5u: 12 rps p95 516 ms, 10u: 12 rps p95 935 ms, 20u: 13 rps p95 1711 ms",
+      "measured": "1u 12.2 rps p95 110 ms, 2u 11.6 rps p95 198 ms, 5u 11.9 rps p95 516 ms, 10u 12.1 rps p95 935 ms, 20u 12.5 rps p95 1711 ms",
       "evidence": "results/concurrency/results.json"
     },
     {
-      "requirement": "Streamlit application",
-      "target": "Launches successfully",
+      "group": "Performance targets",
+      "requirement": "Local LLM generation latency (engine)",
+      "target": "measured (no target)",
       "status": "PASS",
-      "measured": "healthy in 1.03 s",
-      "evidence": "results/streamlit/launch.json"
+      "measured": "p50 1.81 s, TTFT p50 0.96 s, 18.2 tok/s",
+      "evidence": "results/generation/results.json"
     },
     {
-      "requirement": "Automated tests",
-      "target": "Pass",
-      "status": "PASS",
-      "measured": "97 tests, 0 failures, 0 errors, 0 skipped",
-      "evidence": "results/tests/junit.xml"
-    },
-    {
-      "requirement": "Documentation",
-      "target": "Complete",
-      "status": "PASS",
-      "measured": "all required documents present",
-      "evidence": "docs/"
+      "group": "Performance targets",
+      "requirement": "End-to-end answer latency via HTTP API",
+      "target": "< 300 ms (stretch, not a stated target)",
+      "status": "FAIL",
+      "measured": "evidence p50 100 ms \u00b7 first token p50 1078 ms \u00b7 total p50 2.05 s / p95 4.66 s",
+      "evidence": "results/api_e2e/results.json"
     }
   ]
 }

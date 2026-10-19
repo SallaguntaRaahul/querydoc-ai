@@ -18,7 +18,6 @@ import time
 from dataclasses import asdict
 
 from common import EVAL_SET, environment, load_corpus, write_results
-
 from querydoc.chunking.chunkers import ChunkingConfig, chunk_document, joined_text
 from querydoc.embeddings.embedder import Embedder
 from querydoc.evaluation.relevance import (

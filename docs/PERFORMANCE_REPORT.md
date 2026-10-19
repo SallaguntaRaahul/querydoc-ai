@@ -36,7 +36,8 @@ swapping.
 | …vs SentenceTransformers' default batch 32 | no difference (+0.8%) | — | info | same |
 | Concurrent retrieval | 1–20 users, 380 requests, **0 errors**, ~12 req/s (serialised on the reranker) | tested | PASS | `results/concurrency/results.json` |
 | Concurrent generation | 0 errors up to 5 users; at 10–20 users back-pressure rejects as designed, plus 7 timeouts | — | partial | same |
-| End-to-end answer latency (1.5B, warm) | p50 1.9 s, p95 4.4 s | — | info (not sub-300 ms) | `results/generation/results.json` |
+| End-to-end answer latency (1.5B, warm, engine) | p50 1.9 s, p95 4.4 s | — | info (not sub-300 ms) | `results/generation/results.json` |
+| **Through the HTTP API + SSE (what the React app sees)** | time to evidence p50 **100 ms** / p95 **269 ms**; first token p50 1.08 s; full answer p50 2.0 s / p95 4.7 s | — | info | `results/api_e2e/results.json` |
 
 ## 3. Retrieval quality
 
@@ -158,7 +159,24 @@ Notes:
 | synthetic | 200 | 431 | 3.5 s | 2.8 s |
 | NIST SP 800-37r2 | 183 | 803 | 10.8 s | 9.2 s |
 
-## 9. Reproduce
+## 9. End-to-end through the HTTP API (full-stack)
+
+`benchmarks/benchmark_api.py` starts a fresh FastAPI server (empty workspace, real models), uploads the four NIST PDFs through `POST /api/v1/documents/upload`, then streams the 31 held-out questions through `POST /api/v1/chat/stream`, timing on the client side. Swap in use at start: 12.8 GB.
+
+| Measure | p50 | p95 | p99 |
+|---|---|---|---|
+| Time to evidence (request → SSE `retrieval` event; includes HTTP, queueing, retrieval with GPU reranker) | 100 ms | 269 ms | 277 ms |
+| Server-side retrieval | 96 ms | 264 ms | 272 ms |
+| Time to first token | 1.08 s | 1.26 s | 1.49 s |
+| Full answer (request → `done`, incl. verification + DB write) | 2.05 s | 4.66 s | 4.72 s |
+
+Outcomes: 26 verified, 4 partially verified, 1 insufficient evidence (30 generated answers, mean 36 tokens).
+
+Upload → ready through the API (background worker): 48 pages 3.5 s · 80 pages 3.9–4.2 s · **183 pages 12.9 s**.
+
+Interpretation: the evidence panel fills in about a tenth of a second; the answer itself is bounded by local generation speed (~18 tokens/s for the 1.5B model on the M3 Pro GPU). The HTTP + SSE + database layers add only a few milliseconds on top of the engine's retrieval latency (server 96 ms vs client 100 ms at p50).
+
+## 10. Reproduce
 
 ```bash
 python scripts/download_corpus.py
@@ -170,9 +188,10 @@ python benchmarks/benchmark_ingestion.py --repeats 3
 python benchmarks/benchmark_concurrency.py --retrieval-requests 10 --generation-requests 2 --max-new-tokens 64
 python benchmarks/benchmark_generation.py
 python benchmarks/make_charts.py
+python benchmarks/benchmark_api.py          # full-stack: HTTP API + SSE with real models
 ```
 
-## 10. Statistical limitations
+## 11. Statistical limitations
 
 - 63 evaluation questions over 4 documents; the relevance CI is wide (test +17% … +91%).
 - Labels were authored with AI assistance; no second annotator.

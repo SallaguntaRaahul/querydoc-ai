@@ -22,7 +22,6 @@ import time
 from pathlib import Path
 
 from common import EVAL_SET, PeakRSSSampler, environment, latency_summary, load_corpus, write_results
-
 from querydoc.config import Settings
 from querydoc.evaluation.relevance import load_eval_set
 from querydoc.exceptions import QueryDocError

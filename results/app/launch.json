@@ -1,0 +1,14 @@
+{
+  "frontend_build": {
+    "ok": true,
+    "seconds": 1.6
+  },
+  "backend_healthy": true,
+  "seconds_to_healthy": 9.12,
+  "spa_served": true,
+  "spa_route_fallback": true,
+  "openapi_paths": 15,
+  "log_tail": "0/103 [00:00<?, ?it/s]\nLoading weights: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 103/103 [00:00<00:00, 11728.66it/s]\n{\"ts\": \"2026-10-19T21:47:52.059+00:00\", \"level\": \"INFO\", \"logger\": \"querydoc.embeddings.embedder\", \"msg\": \"event=embedder_loaded model=sentence-transformers/all-MiniLM-L6-v2 device=cpu dim=384\"}\n{\"ts\": \"2026-10-19T21:47:52.070+00:00\", \"level\": \"INFO\", \"logger\": \"querydoc.api\", \"msg\": \"startup complete\", \"reconcile\": {\"imported\": 0, \"requeued\": 0, \"marked_failed\": 0}, \"vectors\": 0}\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8199 (Press CTRL+C to quit)\n{\"ts\": \"2026-10-19T21:47:52.137+00:00\", \"level\": \"INFO\", \"logger\": \"querydoc.api\", \"msg\": \"request\", \"request_id\": \"60232730d84b\", \"method\": \"GET\", \"path\": \"/api/v1/health\", \"status\": 200, \"ms\": 13.5}\nINFO:     127.0.0.1:65411 - \"GET /api/v1/health HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:65412 - \"GET / HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:65413 - \"GET /chat/some-conversation HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:65414 - \"GET /api/openapi.json HTTP/1.1\" 200 OK\nINFO:     Shutting down\nINFO:     Waiting for application shutdown.\nINFO:     Application shutdown complete.\nINFO:     Finished server process [92302]\n/opt/homebrew/Cellar/python@3.12/3.12.7/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown\n  warnings.warn('resource_tracker: There appear to be %d '\n",
+  "command": "python scripts/check_app.py",
+  "timestamp_utc": "2026-10-19T21:47:52+00:00"
+}
