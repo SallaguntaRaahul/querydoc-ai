@@ -1,43 +1,32 @@
 # QueryDoc AI — Implementation Status
 
-Author: Raahul Sallagunta · Last updated: 2026-10-19
+Author: Raahul Sallagunta · Last updated: 2026-10-19 (full-stack upgrade, in progress)
 
-This file tracks progress so work can be resumed. Final, evidence-linked status
-lives in `results/acceptance/ACCEPTANCE.md` and `docs/RESUME_CLAIM_VALIDATION.md`.
+## Full-stack upgrade (React + FastAPI)
 
-| # | Phase | Status | Notes |
-|---|---|---|---|
-| 1 | Environment & repo inspection | Done | Apple M3 Pro, 18 GB RAM, macOS 26.5, Python 3.12 venv, MPS available |
-| 2 | Architecture & dependency selection | Done | see `docs/TECH_STACK_DECISIONS.md` |
-| 3 | PDF ingestion | Done | PyMuPDF; rotated-text filter; scanned/blank detection; limits |
-| 4 | Chunking | Done | fixed / recursive (LangChain) / sentence; page ranges |
-| 5 | Embeddings | Done | all-MiniLM-L6-v2, streaming batches, content-hash cache |
-| 6 | FAISS + persistence | Done | IndexIDMap2(Flat/HNSW), checksummed manifest, atomic save |
-| 7 | Retrieval & relevance | Done | BM25 hybrid (RRF), dedup, MMR, cross-encoder rerank |
-| 8 | Local HF generation | Done | Qwen2.5-1.5B-Instruct default (measured vs 0.5B), MPS/CPU |
-| 9 | Citations | Done | tag parsing, existence/doc checks, lexical support scoring |
-| 10 | Streamlit app | Done | workspace, chat, source explorer w/ page render, perf tab |
-| 11 | Concurrency controls | Done | RW lock on index, generation gate (active/queue/timeout) |
-| 12 | Automated tests | Done | unit / integration / e2e (LLM) / performance / security |
-| 13 | Benchmarks | Done | `benchmarks/`, raw results in `results/` |
-| 14 | Optimization & retest | Done | see `docs/EXPERIMENTS.md` |
-| 15 | Documentation | Done | `docs/` |
-| 16 | Acceptance validation | Done | `scripts/acceptance.py` |
-| 17 | Handover | Done | README + final report |
+| Area | Status | Notes |
+|---|---|---|
+| Repo restructure (backend/, frontend/) | Done | RAG engine preserved as `backend/querydoc`; Streamlit removed |
+| FastAPI API v1 (documents, chat, SSE stream, conversations, analytics, settings, health) | Done | Verified live with curl: upload → background index → stream → cancel → follow-up |
+| SQLAlchemy + SQLite + Alembic | Done | migration `bd60d90d22a9`, runs on startup |
+| Background ingestion worker, reindex, reconciliation | Done | |
+| Engine: answer_stream, cancellable generation, follow-up history | Done | 97 engine tests pass |
+| React frontend: design system, shell, 6 pages, PDF viewer, analytics, settings | Done | `npm run build` + `tsc` clean; verified in browser (mobile width): stream, citation → highlighted page |
+| Frontend tests (Vitest + RTL + axe) | Done | 22 passing |
+| Backend API tests (pytest + HTTPX) | **TODO** | `backend/tests/api/` is empty |
+| Playwright E2E (upload → index → ask → stream → cite → reload → delete) | **TODO** | `@playwright/test` installed, no specs yet |
+| Desktop/tablet/light-theme visual QA + README screenshots | **TODO** | only mobile-width browser checks done |
+| API end-to-end latency benchmark (`results/api_e2e`) | **TODO** | engine benchmarks from phase 1 remain valid |
+| Scripts: `scripts/dev.sh` (both servers), prod build serving | Partial | run_backend.sh / run_frontend.sh exist; FastAPI serves `frontend/dist` when built |
+| Docs update for full-stack architecture (guide, README, API, SSE, React) | **TODO** | docs still describe the Streamlit UI |
+| Acceptance script update for new criteria | **TODO** | |
 
-## Acceptance (scripts/acceptance.py)
-15 PASS, 2 FAIL: CPU-only retrieval latency (p95 556 ms) and end-to-end answer latency (p50 1.9 s).
-See `results/acceptance/ACCEPTANCE.md`.
+## Run (development)
+```bash
+./scripts/run_backend.sh     # http://127.0.0.1:8000/api/docs
+./scripts/run_frontend.sh    # http://127.0.0.1:5173 (Node 22, see frontend/.nvmrc)
+```
 
-## Known open items
-- License not selected (author decision required) — see README "License".
-- Generation timeouts at 10-20 concurrent users under memory pressure: observed, not root-caused.
-- Project folder renamed to `querydoc-ai.nosync` (symlink `querydoc-ai`) so iCloud stops evicting files; it is no longer iCloud-backed — push to a git remote.
-- OCR is an optional extension (`QUERYDOC_ENABLE_OCR=true` + Tesseract); not exercised in tests.
-
-## Notable engineering issues encountered
-- macOS: FAISS and PyTorch wheels each bundle `libomp`; loading both segfaults/deadlocks.
-  Fixed via `OMP_NUM_THREADS=1` at package import + `torch.set_num_threads()` and importing
-  torch before faiss. See `docs/TROUBLESHOOTING.md`.
-- NIST PDFs carry a rotated sidebar watermark that plain extraction interleaved into body
-  sentences; extraction now keeps horizontal lines only.
+## Known issues
+- Project lives in `querydoc-ai.nosync` (symlink `querydoc-ai`) to stop iCloud eviction; not iCloud-backed.
+- Phase-1 measured results and caveats: see docs/PERFORMANCE_REPORT.md.

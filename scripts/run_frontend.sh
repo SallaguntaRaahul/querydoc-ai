@@ -3,5 +3,6 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT/frontend"
+export PATH="$HOME/.nvm/versions/node/v$(cat .nvmrc)/bin:$PATH"
 [ -d node_modules ] || npm ci
 exec npm run dev -- --host 127.0.0.1 --port "${PORT:-5173}" --strictPort
