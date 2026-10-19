@@ -40,6 +40,7 @@ class RetrievalConfig:
     use_mmr: bool = False
     mmr_lambda: float = 0.7
     use_rerank: bool = False
+    rerank_k: int | None = None  # rerank only the best N candidates (None = all)
     dedup: bool = True
     preprocess_query: bool = True
     doc_ids: tuple[str, ...] | None = None
@@ -252,6 +253,8 @@ class Retriever:
 
         if cfg.use_rerank and self.reranker is not None and ranked:
             t = time.perf_counter()
+            if cfg.rerank_k is not None:
+                ranked = ranked[: max(cfg.rerank_k, cfg.top_k)]
             scores = self.reranker.score(q, [r.chunk.text for r in ranked])
             for r, s in zip(ranked, scores.tolist(), strict=True):
                 r.scores["rerank"] = s

@@ -1,0 +1,62 @@
+[recursive-1000-200] 1528 chunks
+   dense                dev ndcg=0.633 test ndcg=0.578 all ndcg=0.606 hit=0.730 lat=5.2ms
+   dense+dedup          dev ndcg=0.633 test ndcg=0.578 all ndcg=0.606 hit=0.730 lat=8.7ms
+   dense+mmr            dev ndcg=0.589 test ndcg=0.580 all ndcg=0.585 hit=0.698 lat=8.9ms
+   hybrid               dev ndcg=0.615 test ndcg=0.697 all ndcg=0.655 hit=0.825 lat=16.0ms
+   dense+rerank         dev ndcg=0.784 test ndcg=0.803 all ndcg=0.793 hit=0.937 lat=478.4ms
+   hybrid+rerank        dev ndcg=0.814 test ndcg=0.831 all ndcg=0.823 hit=0.968 lat=761.6ms
+   hybrid+mmr+rerank    dev ndcg=0.738 test ndcg=0.741 all ndcg=0.739 hit=0.841 lat=149.1ms
+[recursive-1000-0] 1422 chunks
+   dense                dev ndcg=0.603 test ndcg=0.511 all ndcg=0.558 hit=0.698 lat=6.2ms
+   dense+dedup          dev ndcg=0.603 test ndcg=0.511 all ndcg=0.558 hit=0.698 lat=9.1ms
+   dense+mmr            dev ndcg=0.560 test ndcg=0.486 all ndcg=0.524 hit=0.619 lat=9.6ms
+   hybrid               dev ndcg=0.588 test ndcg=0.588 all ndcg=0.588 hit=0.762 lat=16.8ms
+   dense+rerank         dev ndcg=0.677 test ndcg=0.757 all ndcg=0.716 hit=0.873 lat=522.5ms
+   hybrid+rerank        dev ndcg=0.757 test ndcg=0.765 all ndcg=0.761 hit=0.921 lat=829.4ms
+   hybrid+mmr+rerank    dev ndcg=0.673 test ndcg=0.678 all ndcg=0.675 hit=0.778 lat=157.7ms
+[recursive-750-150] 2077 chunks
+   dense                dev ndcg=0.597 test ndcg=0.572 all ndcg=0.585 hit=0.746 lat=6.5ms
+   dense+dedup          dev ndcg=0.597 test ndcg=0.552 all ndcg=0.575 hit=0.730 lat=9.4ms
+   dense+mmr            dev ndcg=0.554 test ndcg=0.487 all ndcg=0.521 hit=0.651 lat=10.8ms
+   hybrid               dev ndcg=0.579 test ndcg=0.622 all ndcg=0.600 hit=0.746 lat=16.1ms
+   dense+rerank         dev ndcg=0.727 test ndcg=0.778 all ndcg=0.752 hit=0.889 lat=369.3ms
+   hybrid+rerank        dev ndcg=0.768 test ndcg=0.763 all ndcg=0.765 hit=0.921 lat=680.1ms
+   hybrid+mmr+rerank    dev ndcg=0.698 test ndcg=0.664 all ndcg=0.681 hit=0.794 lat=124.9ms
+[recursive-500-100] 3155 chunks
+   dense                dev ndcg=0.567 test ndcg=0.671 all ndcg=0.618 hit=0.794 lat=6.1ms
+   dense+dedup          dev ndcg=0.579 test ndcg=0.671 all ndcg=0.625 hit=0.810 lat=8.3ms
+   dense+mmr            dev ndcg=0.498 test ndcg=0.612 all ndcg=0.554 hit=0.667 lat=8.1ms
+   hybrid               dev ndcg=0.568 test ndcg=0.682 all ndcg=0.624 hit=0.762 lat=15.1ms
+   dense+rerank         dev ndcg=0.728 test ndcg=0.767 all ndcg=0.747 hit=0.873 lat=221.7ms
+   hybrid+rerank        dev ndcg=0.771 test ndcg=0.753 all ndcg=0.762 hit=0.889 lat=443.5ms
+   hybrid+mmr+rerank    dev ndcg=0.617 test ndcg=0.704 all ndcg=0.660 hit=0.762 lat=71.1ms
+[recursive-384-64] 3953 chunks
+   dense                dev ndcg=0.439 test ndcg=0.630 all ndcg=0.533 hit=0.683 lat=5.7ms
+   dense+dedup          dev ndcg=0.451 test ndcg=0.630 all ndcg=0.539 hit=0.698 lat=8.0ms
+   dense+mmr            dev ndcg=0.445 test ndcg=0.591 all ndcg=0.517 hit=0.683 lat=8.3ms
+   hybrid               dev ndcg=0.475 test ndcg=0.597 all ndcg=0.535 hit=0.651 lat=15.3ms
+   dense+rerank         dev ndcg=0.654 test ndcg=0.656 all ndcg=0.655 hit=0.794 lat=200.3ms
+   hybrid+rerank        dev ndcg=0.722 test ndcg=0.720 all ndcg=0.721 hit=0.873 lat=338.9ms
+   hybrid+mmr+rerank    dev ndcg=0.595 test ndcg=0.611 all ndcg=0.603 hit=0.730 lat=60.4ms
+[recursive-256-50] 6163 chunks
+   dense                dev ndcg=0.412 test ndcg=0.665 all ndcg=0.536 hit=0.667 lat=5.2ms
+   dense+dedup          dev ndcg=0.412 test ndcg=0.665 all ndcg=0.536 hit=0.667 lat=7.3ms
+   dense+mmr            dev ndcg=0.399 test ndcg=0.665 all ndcg=0.530 hit=0.667 lat=7.8ms
+   hybrid               dev ndcg=0.420 test ndcg=0.597 all ndcg=0.507 hit=0.619 lat=16.4ms
+   dense+rerank         dev ndcg=0.590 test ndcg=0.662 all ndcg=0.625 hit=0.746 lat=123.1ms
+   hybrid+rerank        dev ndcg=0.669 test ndcg=0.720 all ndcg=0.694 hit=0.841 lat=216.3ms
+   hybrid+mmr+rerank    dev ndcg=0.617 test ndcg=0.649 all ndcg=0.632 hit=0.746 lat=48.9ms
+[fixed-1000-200] 1382 chunks
+   dense                dev ndcg=0.521 test ndcg=0.500 all ndcg=0.511 hit=0.683 lat=5.2ms
+   dense+dedup          dev ndcg=0.521 test ndcg=0.500 all ndcg=0.511 hit=0.683 lat=10.8ms
+   dense+mmr            dev ndcg=0.463 test ndcg=0.456 all ndcg=0.460 hit=0.587 lat=10.3ms
+   hybrid               dev ndcg=0.571 test ndcg=0.629 all ndcg=0.599 hit=0.778 lat=18.9ms
+   dense+rerank         dev ndcg=0.719 test ndcg=0.724 all ndcg=0.721 hit=0.857 lat=473.7ms
+   hybrid+rerank        dev ndcg=0.776 test ndcg=0.765 all ndcg=0.771 hit=0.905 lat=787.7ms
+   hybrid+mmr+rerank    dev ndcg=0.595 test ndcg=0.726 all ndcg=0.659 hit=0.794 lat=155.4ms
+[fixed-500-100] 2763 chunks
+   dense                dev ndcg=0.490 test ndcg=0.517 all ndcg=0.503 hit=0.683 lat=4.5ms
+   dense+dedup          dev ndcg=0.490 test ndcg=0.517 all ndcg=0.503 hit=0.683 lat=7.7ms
+   dense+mmr            dev ndcg=0.428 test ndcg=0.514 all ndcg=0.470 hit=0.651 lat=9.9ms
+   hybrid               dev ndcg=0.504 test ndcg=0.593 all ndcg=0.548 hit=0.746 lat=15.5ms
+   dense+rerank         dev ndcg=0.644 test ndcg=0.699 all ndcg=0.671 hit=0.825 lat=286.1ms

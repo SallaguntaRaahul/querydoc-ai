@@ -18,7 +18,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from querydoc.ingestion.pdf_loader import ExtractedDocument
 
 PAGE_JOINER = "\n\n"
-DEFAULT_SEPARATORS: list[str] = ["\n\n", "\n", ". ", "? ", "! ", "; ", ", ", " ", ""]
+DEFAULT_SEPARATORS: list[str] = ["\n\n", ". ", "? ", "! ", "\n", "; ", ", ", " ", ""]
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(\[])|\n{2,}")
 
 

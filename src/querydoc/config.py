@@ -56,7 +56,9 @@ class Settings(BaseSettings):
     use_mmr: bool = False
     mmr_lambda: float = 0.7
     use_rerank: bool = True
+    rerank_k: int | None = 20  # candidates passed to the cross-encoder
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    reranker_device: DeviceName = "auto"  # MPS/CUDA when available: ~3x faster than CPU on an M3 Pro
     # Below this best dense cosine score the system declines to answer.
     min_relevance_score: float = 0.25
 

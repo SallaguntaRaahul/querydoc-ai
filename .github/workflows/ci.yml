@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      QUERYDOC_SKIP_LLM: "1"   # the 1 GB generation model is not downloaded in CI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ hashFiles('pyproject.toml') }}
+      - name: Install
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -e ".[dev]"
+      - name: Ruff
+        run: ruff check src app benchmarks scripts tests
+      - name: Mypy
+        run: mypy
+      - name: Tests (unit, integration, security, performance smoke; LLM e2e skipped)
+        run: pytest -m "not llm" --timeout=600

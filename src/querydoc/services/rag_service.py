@@ -122,7 +122,7 @@ class QueryDocService:
     def reranker(self) -> Reranker:
         with self._reranker_lock:
             if self._reranker is None:
-                self._reranker = Reranker(self.settings.reranker_model, device="cpu")
+                self._reranker = Reranker(self.settings.reranker_model, device=self.settings.reranker_device)
                 self.retriever.reranker = self._reranker
         return self._reranker
 
@@ -283,6 +283,7 @@ class QueryDocService:
             use_mmr=s.use_mmr,
             mmr_lambda=s.mmr_lambda,
             use_rerank=s.use_rerank,
+            rerank_k=s.rerank_k,
         )
         base.update({k: v for k, v in overrides.items() if v is not None})
         if "doc_ids" in base and base["doc_ids"] is not None:
