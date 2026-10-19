@@ -1,6 +1,0 @@
-[server]
-# Keep in sync with QUERYDOC_MAX_UPLOAD_MB (the service enforces its own limit as well).
-maxUploadSize = 50
-
-[browser]
-gatherUsageStats = false

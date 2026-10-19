@@ -127,13 +127,13 @@ def test_generation_requests_are_bounded_before_retrieval(service, monkeypatch):
     service.ingest(data, "gate.pdf")
     service.gate = GenerationGate(max_active=1, max_queue=1, timeout_s=10)
     release = threading.Event()
-    real_answer = service._answer
+    real_events = service._answer_events
 
-    def slow_answer(question, cfg, params, generate, started, wait_ms):
+    def slow_events(question, cfg, params, generate, started, wait_ms, history, cancel):
         release.wait(5)  # hold the slot; skip the LLM so the test needs no model
-        return real_answer(question, cfg, params, False, started, wait_ms)
+        yield from real_events(question, cfg, params, False, started, wait_ms, history, cancel)
 
-    monkeypatch.setattr(service, "_answer", slow_answer)
+    monkeypatch.setattr(service, "_answer_events", slow_events)
     results: list[object] = []
 
     def call():

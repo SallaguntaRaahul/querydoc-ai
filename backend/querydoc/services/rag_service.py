@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Generator, Iterator, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -138,6 +138,22 @@ class QueryDocService:
             if self._llm is None:
                 raise GenerationUnavailableError(self._llm_error or "LLM unavailable")
             return self._llm
+
+    def reset_llm(self) -> None:
+        """Forget the loaded model (and any load error) so the next answer loads the
+        currently configured one. In-flight generations keep their reference."""
+        with self._llm_lock:
+            self._llm = None
+            self._llm_error = None
+
+    def reset_reranker(self) -> None:
+        with self._reranker_lock:
+            self._reranker = None
+            self.retriever.reranker = None
+
+    @property
+    def reranker_loaded(self) -> bool:
+        return self._reranker is not None
 
     @property
     def llm_loaded(self) -> bool:
@@ -303,12 +319,41 @@ class QueryDocService:
         params: GenerationParams | None = None,
         *,
         generate: bool = True,
+        history: Sequence[tuple[str, str]] | None = None,
+        cancel: threading.Event | None = None,
     ) -> RAGResponse:
-        """Retrieve, generate and verify. Requests that will generate take a
-        GenerationGate slot *before* retrieval, so the queue bound and timeout
-        cover the whole request (retrieval also uses the shared GPU); requests
-        beyond the bound fail fast with QueueFullError. Retrieval-only calls
-        are not gated."""
+        """Blocking variant of :meth:`answer_stream`: returns the final response."""
+        final: RAGResponse | None = None
+        for kind, payload in self.answer_stream(
+            question, cfg, params, generate=generate, history=history, cancel=cancel
+        ):
+            if kind == "final":
+                final = payload  # type: ignore[assignment]
+        assert final is not None
+        return final
+
+    def answer_stream(
+        self,
+        question: str,
+        cfg: RetrievalConfig | None = None,
+        params: GenerationParams | None = None,
+        *,
+        generate: bool = True,
+        history: Sequence[tuple[str, str]] | None = None,
+        cancel: threading.Event | None = None,
+    ) -> Iterator[tuple[str, object]]:
+        """Retrieve, generate and verify, yielding events as they happen:
+
+        ``("retrieval", RetrievalResult)`` once, ``("token", str)`` per generated
+        fragment, then ``("final", RAGResponse)``.
+
+        Requests that will generate take a GenerationGate slot *before* retrieval,
+        so the queue bound and timeout cover the whole request (retrieval also uses
+        the shared GPU); requests beyond the bound fail fast with QueueFullError.
+        Setting ``cancel`` stops generation at the next token (client disconnected).
+        ``history`` holds earlier (question, answer) turns used to interpret
+        follow-up questions; facts must still come from the retrieved sources.
+        """
         started = time.perf_counter()
         question = question.strip()
         if not question:
@@ -316,11 +361,12 @@ class QueryDocService:
         if self.store.size == 0:
             raise QueryDocError("No documents are indexed yet. Upload a PDF first.")
         if not generate:
-            return self._answer(question, cfg, params, False, started, None)
+            yield from self._answer_events(question, cfg, params, False, started, None, history, cancel)
+            return
         with self.gate.slot() as wait_ms:
-            return self._answer(question, cfg, params, True, started, wait_ms)
+            yield from self._answer_events(question, cfg, params, True, started, wait_ms, history, cancel)
 
-    def _answer(
+    def _answer_events(
         self,
         question: str,
         cfg: RetrievalConfig | None,
@@ -328,52 +374,47 @@ class QueryDocService:
         generate: bool,
         started: float,
         queue_wait_ms: float | None,
-    ) -> RAGResponse:
+        history: Sequence[tuple[str, str]] | None,
+        cancel: threading.Event | None,
+    ) -> Iterator[tuple[str, object]]:
         s = self.settings
         cfg = cfg or self.retrieval_config()
         timings: dict[str, float] = {} if queue_wait_ms is None else {"queue_wait": queue_wait_ms}
-        retrieval = self.retrieve(question, cfg)
+        turns = list(history or [])[-2:]
+        # Follow-ups ("what about AAL2?") are retrieved together with the previous question.
+        retrieval_query = f"{turns[-1][0]} {question}" if turns else question
+        retrieval = self.retrieve(retrieval_query, cfg)
         allowed = set(cfg.doc_ids) if cfg.doc_ids is not None else self.store.doc_ids()
         timings["retrieval"] = retrieval.latency_ms
+        yield "retrieval", retrieval
 
-        def done(resp: RAGResponse) -> RAGResponse:
+        def final(resp: RAGResponse) -> tuple[str, object]:
             resp.timings_ms["total"] = (time.perf_counter() - started) * 1000
-            return resp
+            return "final", resp
 
         if not retrieval.chunks or retrieval.max_dense_score < s.min_relevance_score:
-            return done(
+            yield final(
                 RAGResponse(
-                    question,
-                    INSUFFICIENT_MESSAGE,
-                    STATUS_INSUFFICIENT,
-                    "insufficient_evidence",
-                    None,
-                    retrieval,
-                    None,
-                    timings,
+                    question, INSUFFICIENT_MESSAGE, STATUS_INSUFFICIENT, "insufficient_evidence", None,
+                    retrieval, None, timings,
                     [f"Best passage similarity {retrieval.max_dense_score:.2f} is below the "
                      f"threshold {s.min_relevance_score:.2f}."],
                 )
             )
-
+            return
         if not generate:
-            return done(RAGResponse(question, "", "retrieval_only", "retrieval_only", None, retrieval, None, timings))
+            yield final(RAGResponse(question, "", "retrieval_only", "retrieval_only", None, retrieval, None, timings))
+            return
         try:
             llm = self.llm()
         except GenerationUnavailableError as exc:
-            return done(
+            yield final(
                 RAGResponse(
-                    question,
-                    "",
-                    "retrieval_only",
-                    "retrieval_only",
-                    None,
-                    retrieval,
-                    None,
-                    timings,
+                    question, "", "retrieval_only", "retrieval_only", None, retrieval, None, timings,
                     [f"Generation model unavailable, showing retrieved passages only. ({exc})"],
                 )
             )
+            return
 
         params = params or GenerationParams(
             max_new_tokens=s.max_new_tokens, temperature=s.temperature, top_p=s.top_p
@@ -384,27 +425,48 @@ class QueryDocService:
             retrieval.chunks,
             max_context_tokens=s.max_context_tokens,
             count_tokens=llm.count_tokens,
+            history=turns,
         )
         timings["prompt"] = (time.perf_counter() - t) * 1000
-        gen = llm.generate(prompt.messages, params)
+        gen = yield from self._stream_tokens(llm, prompt.messages, params, cancel)
         timings["generation"] = gen.latency_ms
+        timings["time_to_first_token"] = gen.time_to_first_token_ms
 
-        t = time.perf_counter()
-        report = verify_answer(
-            gen.text, prompt.sources, allowed_doc_ids=allowed, chunk_lookup=self.store.get_chunk
-        )
-        timings["citation_check"] = (time.perf_counter() - t) * 1000
         safety_notes = (
             [f"Possible prompt injection: instruction-like text in {', '.join(prompt.flagged_sources)} "
              "was redacted before generation."]
             if prompt.flagged_sources else []
         )
+        if cancel is not None and cancel.is_set():
+            yield final(
+                RAGResponse(question, gen.text, "cancelled", "cancelled", None, retrieval, gen, timings,
+                            ["Generation was cancelled before completion; the partial answer was not verified."])
+            )
+            return
+        t = time.perf_counter()
+        report = verify_answer(
+            gen.text, prompt.sources, allowed_doc_ids=allowed, chunk_lookup=self.store.get_chunk
+        )
+        timings["citation_check"] = (time.perf_counter() - t) * 1000
         if report.status == STATUS_INSUFFICIENT:
-            return done(
+            yield final(
                 RAGResponse(question, INSUFFICIENT_MESSAGE, STATUS_INSUFFICIENT, "insufficient_evidence",
                             report, retrieval, gen, timings, ["The model reported insufficient evidence.", *safety_notes])
             )
-        return done(
+            return
+        yield final(
             RAGResponse(question, report.answer, report.status, "generated", report, retrieval, gen, timings,
                         [*safety_notes, *report.notes])
         )
+
+    @staticmethod
+    def _stream_tokens(
+        llm: LocalLLM, messages: list[dict[str, str]], params: GenerationParams, cancel: threading.Event | None
+    ) -> Generator[tuple[str, object], None, GenerationResult]:
+        it = llm.iter_generate(messages, params, stop_event=cancel)
+        while True:
+            try:
+                piece = next(it)
+            except StopIteration as stop:
+                return stop.value
+            yield "token", piece

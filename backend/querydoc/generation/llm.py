@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -82,9 +82,15 @@ class LocalLLM:
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         return self.tokenizer(prompt, return_tensors="pt")
 
-    def stream(self, messages: list[dict[str, str]], params: GenerationParams) -> Iterator[str]:
-        """Yield text fragments as they are generated."""
-        from transformers import TextIteratorStreamer
+    def stream(
+        self,
+        messages: list[dict[str, str]],
+        params: GenerationParams,
+        stop_event: threading.Event | None = None,
+    ) -> Iterator[str]:
+        """Yield text fragments as they are generated. Setting ``stop_event`` ends
+        generation at the next token (used when a streaming client disconnects)."""
+        from transformers import StoppingCriteria, StoppingCriteriaList, TextIteratorStreamer
 
         inputs = self._inputs(messages)
         streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -94,6 +100,13 @@ class LocalLLM:
             repetition_penalty=params.repetition_penalty,
             pad_token_id=self.tokenizer.eos_token_id,
         )
+        if stop_event is not None:
+
+            class _Stop(StoppingCriteria):
+                def __call__(self, input_ids, scores, **kw):
+                    return stop_event.is_set()
+
+            kwargs["stopping_criteria"] = StoppingCriteriaList([_Stop()])
         if params.temperature > 0:
             kwargs.update(do_sample=True, temperature=params.temperature, top_p=params.top_p)
         else:
@@ -127,16 +140,24 @@ class LocalLLM:
                 ) from exc
             raise GenerationError(f"Generation failed: {exc}") from exc
 
-    def generate(self, messages: list[dict[str, str]], params: GenerationParams | None = None) -> GenerationResult:
+    def iter_generate(
+        self,
+        messages: list[dict[str, str]],
+        params: GenerationParams | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> Generator[str, None, GenerationResult]:
+        """Yield text fragments; the generator's return value is the GenerationResult."""
         params = params or GenerationParams()
         prompt_tokens = int(self._inputs(messages)["input_ids"].shape[1])
         started = time.perf_counter()
         first: float | None = None
         parts: list[str] = []
-        for piece in self.stream(messages, params):
+        for piece in self.stream(messages, params, stop_event):
             if first is None and piece:
                 first = time.perf_counter()
             parts.append(piece)
+            if piece:
+                yield piece
         latency = (time.perf_counter() - started) * 1000
         text = "".join(parts).strip()
         return GenerationResult(
@@ -146,6 +167,19 @@ class LocalLLM:
             latency_ms=latency,
             time_to_first_token_ms=((first or time.perf_counter()) - started) * 1000,
         )
+
+    def generate(
+        self,
+        messages: list[dict[str, str]],
+        params: GenerationParams | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> GenerationResult:
+        it = self.iter_generate(messages, params, stop_event)
+        while True:
+            try:
+                next(it)
+            except StopIteration as stop:
+                return stop.value
 
     def _free_memory(self) -> None:
         try:

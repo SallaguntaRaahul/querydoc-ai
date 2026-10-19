@@ -37,9 +37,10 @@ The warranty period is 24 months [S2]. Claims must be filed in writing [S1]."""
 _TEMPLATE = ChatPromptTemplate.from_messages(
     [
         ("system", "{system}"),
-        ("human", "Sources:\n{context}\n\nQuestion: {question}"),
+        ("human", "{history}Sources:\n{context}\n\nQuestion: {question}"),
     ]
 )
+HISTORY_CHARS = 500
 
 
 # Heuristic patterns for text addressed to an AI assistant rather than to a human reader.
@@ -98,6 +99,7 @@ def build_prompt(
     *,
     max_context_tokens: int,
     count_tokens: Callable[[str], int],
+    history: Sequence[tuple[str, str]] = (),
 ) -> BuiltPrompt:
     """Add sources in rank order until the context-token budget is reached."""
     blocks: list[str] = []
@@ -115,7 +117,18 @@ def build_prompt(
         if was_flagged:
             flagged.append(tag)
         total += n
-    value = _TEMPLATE.format_messages(system=SYSTEM_PROMPT, context="\n\n".join(blocks), question=question)
+    history_text = ""
+    if history:
+        turns = "\n".join(
+            f"User: {q[:HISTORY_CHARS]}\nAssistant: {a[:HISTORY_CHARS]}" for q, a in history
+        )
+        history_text = (
+            "Earlier in this conversation (use only to understand what the question refers to; "
+            f"facts must come from the sources):\n{turns}\n\n"
+        )
+    value = _TEMPLATE.format_messages(
+        system=SYSTEM_PROMPT, history=history_text, context="\n\n".join(blocks), question=question
+    )
     role = {"system": "system", "human": "user", "ai": "assistant"}
     messages = [{"role": role[m.type], "content": str(m.content)} for m in value]
     return BuiltPrompt(messages=messages, sources=used, context_tokens=total, flagged_sources=flagged)
