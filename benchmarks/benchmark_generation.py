@@ -64,8 +64,10 @@ def main() -> None:
             g = resp.generation
             model_rows.append({
                 "model": model, "qid": q.id, "kind": "answerable", "status": resp.status, "mode": resp.mode,
-                "answer_correct": all(k.lower() in text for k in q.answer_keywords),
-                "cited": bool(cites), "citation_on_evidence": on_evidence,
+                # only generated answers can be correct ("not" must not match the decline message)
+                "answer_correct": resp.mode == "generated" and all(k.lower() in text for k in q.answer_keywords),
+                "cited": bool(cites), "model_tagged": any(c.method == "model" for c in cites),
+                "citation_on_evidence": on_evidence,
                 "invalid_tags": len(resp.citations.invalid_tags) if resp.citations else 0,
                 "retrieval_ms": resp.timings_ms.get("retrieval"), "generation_ms": resp.timings_ms.get("generation"),
                 "total_ms": resp.timings_ms.get("total"),
@@ -92,6 +94,8 @@ def main() -> None:
             "answerable": len(ans),
             "answer_accuracy": sum(r["answer_correct"] for r in ans) / len(ans),
             "cited_rate": sum(r["cited"] for r in ans) / len(ans),
+            "model_tagged_rate": sum(r["model_tagged"] for r in ans) / len(ans),
+            "generated_rate": len(gen) / len(ans),
             "citation_on_evidence_rate": sum(r["citation_on_evidence"] for r in ans) / len(ans),
             "status_counts": {s: sum(r["status"] == s for r in ans) for s in {r["status"] for r in ans}},
             "invalid_tags_removed": sum(r["invalid_tags"] for r in ans),
@@ -104,7 +108,7 @@ def main() -> None:
         }
         s = summary[model]
         print(f"{model}: device={s['device']} load={s['load_seconds']:.1f}s acc={s['answer_accuracy']:.2f} "
-              f"cited={s['cited_rate']:.2f} on_evidence={s['citation_on_evidence_rate']:.2f} "
+              f"cited={s['cited_rate']:.2f} model_tagged={s['model_tagged_rate']:.2f} on_evidence={s['citation_on_evidence_rate']:.2f} "
               f"declined_unans={s['unanswerable_declined_rate']} e2e_p50={s['end_to_end_latency']['p50_ms']:.0f}ms "
               f"p95={s['end_to_end_latency']['p95_ms']:.0f}ms tok/s={s['tokens_per_second_mean']}", flush=True)
         del svc, llm

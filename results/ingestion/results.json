@@ -1,0 +1,149 @@
+{
+  "experiment": "ingestion pipeline timings",
+  "repeats": 3,
+  "chunking": {
+    "strategy": "recursive",
+    "size": 1000,
+    "overlap": 200
+  },
+  "embedding_batch_size": 32,
+  "summary": {
+    "synthetic_10p.pdf": {
+      "pages": 10,
+      "chunks": 21,
+      "extract_ms_mean": 37.50276365705455,
+      "chunk_ms_mean": 0.5278193469469746,
+      "embed_ms_mean": 129.3282499924923,
+      "index_ms_mean": 0.062277327136447035,
+      "persist_ms_mean": 2.3761526487457254,
+      "total_ms_mean": 169.797262972376,
+      "total_ms_stdev": 8.44133989571952,
+      "pages_per_second": 58.89376439257965,
+      "chunks_per_second_mean": 162.5354143701658
+    },
+    "synthetic_50p.pdf": {
+      "pages": 50,
+      "chunks": 103,
+      "extract_ms_mean": 169.60015233295658,
+      "chunk_ms_mean": 2.096360995589445,
+      "embed_ms_mean": 699.4331249928413,
+      "index_ms_mean": 0.07440268139665325,
+      "persist_ms_mean": 2.6918056731422744,
+      "total_ms_mean": 873.8958466759262,
+      "total_ms_stdev": 12.012357201395478,
+      "pages_per_second": 57.21505622230277,
+      "chunks_per_second_mean": 147.29359915991324
+    },
+    "synthetic_100p.pdf": {
+      "pages": 100,
+      "chunks": 216,
+      "extract_ms_mean": 339.9056940106675,
+      "chunk_ms_mean": 4.265194002073258,
+      "embed_ms_mean": 1452.943750016857,
+      "index_ms_mean": 0.10843033669516444,
+      "persist_ms_mean": 3.6504999734461308,
+      "total_ms_mean": 1800.873568339739,
+      "total_ms_stdev": 19.175457495742748,
+      "pages_per_second": 55.52860664849003,
+      "chunks_per_second_mean": 148.67975845106218
+    },
+    "synthetic_200p.pdf": {
+      "pages": 200,
+      "chunks": 431,
+      "extract_ms_mean": 673.2754583548134,
+      "chunk_ms_mean": 8.022333359501014,
+      "embed_ms_mean": 2818.7862776685506,
+      "index_ms_mean": 0.16798633926858506,
+      "persist_ms_mean": 6.29987499754255,
+      "total_ms_mean": 3506.551930719676,
+      "total_ms_stdev": 48.95322636686257,
+      "pages_per_second": 57.03608671751583,
+      "chunks_per_second_mean": 152.93715236580127
+    },
+    "NIST.AI.100-1.pdf": {
+      "pages": 48,
+      "chunks": 148,
+      "extract_ms_mean": 239.113374981874,
+      "chunk_ms_mean": 2.0798473269678652,
+      "embed_ms_mean": 1353.2992360220912,
+      "index_ms_mean": 0.08387469764177997,
+      "persist_ms_mean": 3.528985990366588,
+      "total_ms_mean": 1598.1053190189414,
+      "total_ms_stdev": 11.13544553692388,
+      "pages_per_second": 30.03556738642648,
+      "chunks_per_second_mean": 109.36840425478886
+    },
+    "NIST.SP.800-37r2.pdf": {
+      "pages": 183,
+      "chunks": 803,
+      "extract_ms_mean": 1511.3017223387335,
+      "chunk_ms_mean": 9.575305661807457,
+      "embed_ms_mean": 9229.691777649956,
+      "index_ms_mean": 0.24927733466029167,
+      "persist_ms_mean": 10.053430994351706,
+      "total_ms_mean": 10760.87151397951,
+      "total_ms_stdev": 12.266032966373158,
+      "pages_per_second": 17.00605752631315,
+      "chunks_per_second_mean": 86.89392337016243
+    },
+    "NIST.SP.800-61r2.pdf": {
+      "pages": 80,
+      "chunks": 321,
+      "extract_ms_mean": 532.8612359977948,
+      "chunk_ms_mean": 59.76412532618269,
+      "embed_ms_mean": 3242.9957220253223,
+      "index_ms_mean": 0.13973633758723736,
+      "persist_ms_mean": 5.682222001875441,
+      "total_ms_mean": 3841.4430416887626,
+      "total_ms_stdev": 283.9380505129217,
+      "pages_per_second": 20.825507272087695,
+      "chunks_per_second_mean": 99.21099657618657
+    },
+    "NIST.SP.800-63b.pdf": {
+      "pages": 80,
+      "chunks": 260,
+      "extract_ms_mean": 479.53506966587156,
+      "chunk_ms_mean": 3.344708646181971,
+      "embed_ms_mean": 2788.6681249947287,
+      "index_ms_mean": 0.12484703135366242,
+      "persist_ms_mean": 4.456291673704982,
+      "total_ms_mean": 3276.1290420118407,
+      "total_ms_stdev": 25.370034492563093,
+      "pages_per_second": 24.419062550378886,
+      "chunks_per_second_mean": 93.23944398454478
+    }
+  },
+  "environment": {
+    "timestamp_utc": "2026-10-19T17:37:17+00:00",
+    "git_commit": "9ae7860",
+    "os": "Darwin 25.5.0 (macOS-26.5-arm64-arm-64bit)",
+    "machine": "arm64",
+    "cpu": "Apple M3 Pro",
+    "logical_cpus": 11,
+    "ram_gb": 18.0,
+    "ram_available_gb_at_start": 4.3,
+    "swap_used_gb_at_start": 6.8,
+    "python": "3.12.7",
+    "torch_threads": 4,
+    "omp_num_threads": "1",
+    "mps_available": true,
+    "cuda_available": false,
+    "packages": {
+      "torch": "2.14.1",
+      "transformers": "5.20.1",
+      "sentence-transformers": "6.1.0",
+      "faiss-cpu": "1.15.1",
+      "pymupdf": "2.0",
+      "langchain-core": "1.6.12",
+      "langchain-text-splitters": "1.1.3",
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "streamlit": "1.66.0",
+      "rank-bm25": "0.2.2"
+    },
+    "models": {
+      "sentence-transformers/all-MiniLM-L6-v2": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+    }
+  },
+  "command": "python benchmarks/benchmark_ingestion.py --repeats 3"
+}

@@ -48,5 +48,7 @@ def llm_available() -> bool:
         return False
     from huggingface_hub import try_to_load_from_cache
 
-    path = try_to_load_from_cache("Qwen/Qwen2.5-0.5B-Instruct", "config.json")
+    from querydoc.config import Settings
+
+    path = try_to_load_from_cache(Settings().llm_model, "config.json")
     return isinstance(path, str)

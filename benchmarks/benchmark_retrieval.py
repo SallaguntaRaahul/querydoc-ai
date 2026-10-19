@@ -54,11 +54,12 @@ def main() -> None:
     ap.add_argument("--queries", type=int, default=200)
     ap.add_argument("--trials", type=int, default=3)
     ap.add_argument("--opt-strategy", default="recursive")
-    ap.add_argument("--opt-size", type=int, default=500)
-    ap.add_argument("--opt-overlap", type=int, default=100)
+    ap.add_argument("--opt-size", type=int, default=1000)
+    ap.add_argument("--opt-overlap", type=int, default=200)
     ap.add_argument("--fetch-k", type=int, default=30)
     ap.add_argument("--rerank-k", type=int, default=20)
-    ap.add_argument("--reranker-device", default="cpu")
+    ap.add_argument("--reranker-device", default="mps")
+    ap.add_argument("--name", default="retrieval_latency", help="results/<name>/")
     args = ap.parse_args()
 
     eval_set = load_eval_set(EVAL_SET)
@@ -131,7 +132,7 @@ def main() -> None:
         "command": "python benchmarks/benchmark_retrieval.py " + " ".join(
             f"--{k.replace('_', '-')} {v}" for k, v in vars(args).items()),
     }
-    out = write_results("retrieval_latency", payload, rows, "raw.csv")
+    out = write_results(args.name, payload, rows, "raw.csv")
     print(f"results -> {out}")
 
 

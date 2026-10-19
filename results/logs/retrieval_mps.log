@@ -1,0 +1,19 @@
+synthetic_10p          baseline_dense       pages=  10 chunks=   21 p50=   6.1 p95=   6.8 p99=   7.1 cold=  12.8
+synthetic_10p          optimized            pages=  10 chunks=   21 p50=  36.1 p95=  48.7 p99=  67.1 cold= 317.1
+synthetic_10p          optimized_no_rerank  pages=  10 chunks=   21 p50=   7.1 p95=   7.9 p99=   8.2 cold=   6.4
+synthetic_50p          baseline_dense       pages=  50 chunks=  103 p50=   6.0 p95=   6.6 p99=   6.8 cold=   4.8
+synthetic_50p          optimized            pages=  50 chunks=  103 p50=  48.7 p95=  89.9 p99= 107.5 cold= 126.6
+synthetic_50p          optimized_no_rerank  pages=  50 chunks=  103 p50=   8.1 p95=   9.4 p99=  10.8 cold=   8.8
+synthetic_100p         baseline_dense       pages= 100 chunks=  216 p50=   6.0 p95=   6.5 p99=   6.8 cold=   4.5
+synthetic_100p         optimized            pages= 100 chunks=  216 p50=  49.4 p95=  64.7 p99=  85.4 cold= 133.0
+synthetic_100p         optimized_no_rerank  pages= 100 chunks=  216 p50=   8.8 p95=  10.1 p99=  10.9 cold=   8.2
+synthetic_200p         baseline_dense       pages= 200 chunks=  431 p50=   6.5 p95=   7.0 p99=   7.6 cold=   4.9
+synthetic_200p         optimized            pages= 200 chunks=  431 p50=  49.6 p95=  54.7 p99=  74.3 cold= 131.3
+synthetic_200p         optimized_no_rerank  pages= 200 chunks=  431 p50=   9.2 p95=  10.4 p99=  11.0 cold=   6.5
+nist_800-37r2_183p     baseline_dense       pages= 183 chunks=  803 p50=   6.2 p95=   6.8 p99=   7.9 cold=   5.0
+nist_800-37r2_183p     optimized            pages= 183 chunks=  803 p50=  79.8 p95= 128.5 p99= 144.8 cold= 188.1
+nist_800-37r2_183p     optimized_no_rerank  pages= 183 chunks=  803 p50=  14.7 p95=  17.2 p99=  17.9 cold=  16.8
+nist_corpus_391p       baseline_dense       pages= 391 chunks= 1532 p50=   5.9 p95=   6.4 p99=   6.7 cold=   5.0
+nist_corpus_391p       optimized            pages= 391 chunks= 1532 p50=  74.6 p95= 126.8 p99= 128.3 cold= 216.3
+nist_corpus_391p       optimized_no_rerank  pages= 391 chunks= 1532 p50=  15.2 p95=  17.8 p99=  19.3 cold=  15.4
+results -> /Users/raahul/Desktop/Projects/querydoc-ai/results/retrieval_latency

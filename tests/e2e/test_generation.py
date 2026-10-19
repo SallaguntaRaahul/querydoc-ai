@@ -1,4 +1,4 @@
-"""End-to-end tests with the real local LLM (Qwen2.5-0.5B-Instruct).
+"""End-to-end tests with the real local LLM (default: Qwen2.5-1.5B-Instruct).
 
 Skipped automatically when the model is not in the local Hugging Face cache.
 Small instruction models are not perfectly reliable, so assertions focus on
@@ -69,3 +69,13 @@ def test_document_filter_restricts_citations(llm_service):
     resp = llm_service.answer(fact.question, cfg)
     if resp.citations:
         assert all(c.doc_id == docs["second.pdf"] for c in resp.citations.citations)
+
+
+def test_concurrent_answers_do_not_crash_on_shared_gpu(llm_service):
+    """Regression: reranker + LLM on MPS from two threads aborted the process."""
+    import concurrent.futures as cf
+
+    questions = [f.question for f in llm_service.facts[:4]]
+    with cf.ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(llm_service.answer, questions))
+    assert all(r.mode in {"generated", "insufficient_evidence"} for r in results)

@@ -124,8 +124,32 @@ def test_unsupported_claim_with_citation_not_verified():
     assert r.status == STATUS_PARTIAL and r.claims[0].supported is False
 
 
-def test_no_citations_is_unverified():
-    assert verify_answer("Secrets need 8 characters.", SOURCES).status == STATUS_UNVERIFIED
+def test_no_citations_is_unverified_without_attribution():
+    r = verify_answer("Secrets need 8 characters.", SOURCES, attribute_untagged=False)
+    assert r.status == STATUS_UNVERIFIED
+
+
+def test_untagged_supported_sentence_gets_attributed_citation():
+    r = verify_answer("Memorized secrets need at least 8 characters.", SOURCES)
+    assert r.status == STATUS_VERIFIED
+    assert [(c.tag, c.method) for c in r.citations] == [("S1", "attributed")]
+    assert any("post-hoc" in n for n in r.notes)
+
+
+def test_untagged_unsupported_sentence_not_attributed():
+    r = verify_answer("Quantum keys rotate hourly.", SOURCES)
+    assert r.status == STATUS_UNVERIFIED and r.citations == []
+
+
+@pytest.mark.parametrize("text", ["The salt is at least 32 bits [Source S2].", "The salt is at least 32 bits [Sources: S2]."])
+def test_source_prefixed_tags_are_parsed(text):
+    r = verify_answer(text, SOURCES)
+    assert [(c.tag, c.method) for c in r.citations] == [("S2", "model")]
+
+
+def test_bare_numeric_brackets_are_not_tags():
+    r = verify_answer("The salt is at least 32 bits [26].", SOURCES, attribute_untagged=False)
+    assert r.citations == []
 
 
 def test_tag_only_answer_is_not_verified():
@@ -170,9 +194,8 @@ def test_gate_limits_active_and_queue():
     t2.daemon = True
     t2.start()
     time.sleep(0.1)
-    with pytest.raises(QueueFullError):
-        with gate.slot():
-            pass
+    with pytest.raises(QueueFullError), gate.slot():
+        pass
     release.set()
     t1.join()
 

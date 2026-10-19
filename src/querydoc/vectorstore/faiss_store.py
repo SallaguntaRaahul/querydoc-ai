@@ -14,16 +14,22 @@ from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
-import torch  # noqa: F401  # must load before faiss on macOS (libomp clash, see querydoc/__init__.py)
-import faiss  # noqa: I001
+
+# isort: off
+# torch must load before faiss on macOS (two bundled libomp copies; see querydoc/__init__.py).
+import torch  # noqa: F401
+import faiss as _faiss
+# isort: on
 
 from querydoc.chunking.chunkers import Chunk
 from querydoc.exceptions import IndexCompatibilityError
 from querydoc.logging_utils import get_logger, kv
 
 log = get_logger(__name__)
+faiss: Any = _faiss  # faiss's generated stubs are inaccurate (e.g. remove_ids, SearchParameters)
 
 MANIFEST_VERSION = 1
 INDEX_FILE = "index.faiss"

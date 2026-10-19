@@ -7,7 +7,6 @@ Author: Raahul Sallagunta
 from __future__ import annotations
 
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +14,9 @@ for p in (ROOT / "src", ROOT):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-import querydoc  # noqa: E402,F401  (OpenMP guard before torch/faiss)
+# isort: off
+import querydoc  # noqa: E402,F401  (OpenMP guard must run before torch/faiss load)
+# isort: on
 import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
 
@@ -125,18 +126,17 @@ def workspace_tab(svc: QueryDocService, opts: dict) -> None:
         return
     st.markdown(f"**{len(docs)} document(s) · {svc.store.size} indexed chunks · index type `{svc.store.index_type}`**")
     for d in docs:
-        c1, c2, c3, c4, c5 = st.columns([4, 1, 1, 2, 1])
-        c1.markdown(f"**{d.filename}**  \n`{d.doc_id}` · {d.title[:60]}")
-        c2.metric("Pages", d.page_count)
-        c3.metric("Chunks", d.chunk_count)
-        c4.caption(
-            f"Embedded ✓ · Indexed ✓  \nchunking: {d.chunking.get('strategy')} "
-            f"{d.chunking.get('chunk_size')}/{d.chunking.get('chunk_overlap')}"
-            + (f"  \n⚠️ scanned pages: {d.scanned_pages[:10]}" if d.scanned_pages else "")
-        )
-        if c5.button("Delete", key=f"del-{d.doc_id}"):
-            svc.delete_document(d.doc_id)
-            st.rerun()
+        with st.container(border=True):
+            c1, c2 = st.columns([5, 1])
+            c1.markdown(f"**{d.filename}** · `{d.doc_id}`  \n{d.title[:80]}")
+            c1.caption(
+                f"{d.page_count} pages · {d.chunk_count} chunks · embedded ✓ · indexed ✓ · "
+                f"chunking {d.chunking.get('strategy')} {d.chunking.get('chunk_size')}/{d.chunking.get('chunk_overlap')}"
+                + (f" · ⚠️ scanned pages: {d.scanned_pages[:10]}" if d.scanned_pages else "")
+            )
+            if c2.button("Delete", key=f"del-{d.doc_id}", width="stretch"):
+                svc.delete_document(d.doc_id)
+                st.rerun()
 
 
 # ------------------------------------------------------------------- chat

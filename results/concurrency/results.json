@@ -1,0 +1,318 @@
+{
+  "experiment": "concurrent queries on a shared service (threads, closed loop)",
+  "index": {
+    "documents": 4,
+    "chunks": 1532,
+    "pages": 391
+  },
+  "retrieval_config": {
+    "top_k": 5,
+    "fetch_k": 30,
+    "use_hybrid": true,
+    "use_mmr": false,
+    "mmr_lambda": 0.7,
+    "use_rerank": true,
+    "rerank_k": 20,
+    "dedup": true,
+    "preprocess_query": true,
+    "doc_ids": null
+  },
+  "generation_controls": {
+    "max_active": 1,
+    "max_queue": 8,
+    "timeout_s": 120.0,
+    "max_new_tokens": 64,
+    "llm": "Qwen/Qwen2.5-1.5B-Instruct",
+    "llm_device": "mps"
+  },
+  "retrieval": [
+    {
+      "users": 1,
+      "requests": 10,
+      "succeeded": 10,
+      "failed": 0,
+      "error_rate": 0.0,
+      "errors": {},
+      "wall_seconds": 0.8220851249643601,
+      "throughput_rps": 12.164190418155941,
+      "latency": {
+        "n": 10,
+        "mean_ms": 82.1936957014259,
+        "stdev_ms": 17.223459206192043,
+        "p50_ms": 77.0492080191616,
+        "p95_ms": 109.59594809683043,
+        "p99_ms": 126.03752323659137,
+        "max_ms": 130.1479170215316
+      },
+      "peak_rss_mb": 1140.15625
+    },
+    {
+      "users": 2,
+      "requests": 20,
+      "succeeded": 20,
+      "failed": 0,
+      "error_rate": 0.0,
+      "errors": {},
+      "wall_seconds": 1.7226647500065155,
+      "throughput_rps": 11.609920038083066,
+      "latency": {
+        "n": 20,
+        "mean_ms": 169.35444375267252,
+        "stdev_ms": 33.533493461369545,
+        "p50_ms": 186.79720850195736,
+        "p95_ms": 197.8047690965468,
+        "p99_ms": 199.495421036263,
+        "max_ms": 199.91808402119204
+      },
+      "peak_rss_mb": 1143.03125
+    },
+    {
+      "users": 5,
+      "requests": 50,
+      "succeeded": 50,
+      "failed": 0,
+      "error_rate": 0.0,
+      "errors": {},
+      "wall_seconds": 4.187115792010445,
+      "throughput_rps": 11.941394144247557,
+      "latency": {
+        "n": 50,
+        "mean_ms": 406.06581169879064,
+        "stdev_ms": 77.80339982317368,
+        "p50_ms": 414.7032499895431,
+        "p95_ms": 516.0981123684905,
+        "p99_ms": 523.176187996869,
+        "max_ms": 528.3937079948373
+      },
+      "peak_rss_mb": 1160.765625
+    },
+    {
+      "users": 10,
+      "requests": 100,
+      "succeeded": 100,
+      "failed": 0,
+      "error_rate": 0.0,
+      "errors": {},
+      "wall_seconds": 8.253304415964521,
+      "throughput_rps": 12.116359092070823,
+      "latency": {
+        "n": 100,
+        "mean_ms": 794.0356342046289,
+        "stdev_ms": 133.8104194761554,
+        "p50_ms": 814.2349164991174,
+        "p95_ms": 935.251562812482,
+        "p99_ms": 971.9258480524878,
+        "max_ms": 995.6007090513594
+      },
+      "peak_rss_mb": 1169.25
+    },
+    {
+      "users": 20,
+      "requests": 200,
+      "succeeded": 200,
+      "failed": 0,
+      "error_rate": 0.0,
+      "errors": {},
+      "wall_seconds": 15.94820795796113,
+      "throughput_rps": 12.540593935518798,
+      "latency": {
+        "n": 200,
+        "mean_ms": 1528.5294851634535,
+        "stdev_ms": 252.54949800037843,
+        "p50_ms": 1593.75137501047,
+        "p95_ms": 1711.417343452922,
+        "p99_ms": 1751.137639527442,
+        "max_ms": 1761.332708003465
+      },
+      "peak_rss_mb": 1173.859375
+    }
+  ],
+  "generation": [
+    {
+      "users": 1,
+      "requests": 2,
+      "succeeded": 2,
+      "failed": 0,
+      "error_rate": 0.0,
+      "errors": {},
+      "wall_seconds": 4.444837499991991,
+      "throughput_rps": 0.4499602066450357,
+      "latency": {
+        "n": 2,
+        "mean_ms": 2222.317625040887,
+        "stdev_ms": 748.4050585908446,
+        "p50_ms": 2222.317625040887,
+        "p95_ms": 2698.5996878443984,
+        "p99_ms": 2740.9358712047106,
+        "max_ms": 2751.5199170447886
+      },
+      "peak_rss_mb": 510.890625,
+      "queue_wait": {
+        "n": 2,
+        "mean_ms": 0.005312496796250343,
+        "stdev_ms": 0.0050381947583217936,
+        "p50_ms": 0.005312496796250343,
+        "p95_ms": 0.008518784306943417,
+        "p99_ms": 0.008803787641227245,
+        "max_ms": 0.008875038474798203
+      }
+    },
+    {
+      "users": 2,
+      "requests": 4,
+      "succeeded": 4,
+      "failed": 0,
+      "error_rate": 0.0,
+      "errors": {},
+      "wall_seconds": 8.710159790993202,
+      "throughput_rps": 0.45923382532387363,
+      "latency": {
+        "n": 4,
+        "mean_ms": 3283.6246454971842,
+        "stdev_ms": 2619.815113197204,
+        "p50_ms": 2212.6630830171052,
+        "p95_ms": 6474.62583919405,
+        "p99_ms": 7002.271334229737,
+        "max_ms": 7134.182707988657
+      },
+      "peak_rss_mb": 548.875,
+      "queue_wait": {
+        "n": 4,
+        "mean_ms": 1106.1247707548318,
+        "stdev_ms": 2212.2454581646475,
+        "p50_ms": 0.002166489139199257,
+        "p95_ms": 3760.8193393534752,
+        "p99_ms": 4291.75823427213,
+        "max_ms": 4424.492958001792
+      }
+    },
+    {
+      "users": 5,
+      "requests": 10,
+      "succeeded": 10,
+      "failed": 0,
+      "error_rate": 0.0,
+      "errors": {},
+      "wall_seconds": 22.41514208400622,
+      "throughput_rps": 0.4461269958728148,
+      "latency": {
+        "n": 10,
+        "mean_ms": 6894.956058304524,
+        "stdev_ms": 7069.978315453116,
+        "p50_ms": 2728.7540415127296,
+        "p95_ms": 18822.31019579049,
+        "p99_ms": 20446.514605548582,
+        "max_ms": 20852.565707988106
+      },
+      "peak_rss_mb": 653.71875,
+      "queue_wait": {
+        "n": 10,
+        "mean_ms": 4653.498245595256,
+        "stdev_ms": 6951.053157047161,
+        "p50_ms": 0.003853492671623826,
+        "p95_ms": 16611.54553574161,
+        "p99_ms": 17849.693040737184,
+        "max_ms": 18159.229916986078
+      }
+    },
+    {
+      "users": 10,
+      "requests": 20,
+      "succeeded": 14,
+      "failed": 6,
+      "error_rate": 0.3,
+      "errors": {
+        "QueueFullError": 3,
+        "GenerationTimeoutError": 3
+      },
+      "wall_seconds": 189.09188220801298,
+      "throughput_rps": 0.07403808051685222,
+      "latency": {
+        "n": 14,
+        "mean_ms": 36274.27623514918,
+        "stdev_ms": 34902.83261434711,
+        "p50_ms": 21731.783833005466,
+        "p95_ms": 98048.04682499378,
+        "p99_ms": 114299.3764650088,
+        "max_ms": 118362.20887501258
+      },
+      "peak_rss_mb": 659.375,
+      "queue_wait": {
+        "n": 14,
+        "mean_ms": 22767.943958361033,
+        "stdev_ms": 31634.32408836315,
+        "p50_ms": 6232.741395506309,
+        "p95_ms": 81087.24664154869,
+        "p99_ms": 95291.44019471187,
+        "max_ms": 98842.4885830027
+      }
+    },
+    {
+      "users": 20,
+      "requests": 40,
+      "succeeded": 13,
+      "failed": 27,
+      "error_rate": 0.675,
+      "errors": {
+        "QueueFullError": 23,
+        "GenerationTimeoutError": 4
+      },
+      "wall_seconds": 204.3476339589688,
+      "throughput_rps": 0.06361708108942571,
+      "latency": {
+        "n": 13,
+        "mean_ms": 47532.204099384566,
+        "stdev_ms": 35594.64503868209,
+        "p50_ms": 37288.579915999435,
+        "p95_ms": 103739.00931680111,
+        "p99_ms": 118828.68239698469,
+        "max_ms": 122601.10066703055
+      },
+      "peak_rss_mb": 559.796875,
+      "queue_wait": {
+        "n": 13,
+        "mean_ms": 31813.64104484405,
+        "stdev_ms": 35562.47045025812,
+        "p50_ms": 18673.4247909626,
+        "p95_ms": 89876.22864139268,
+        "p99_ms": 104186.70806105252,
+        "max_ms": 107764.32791596744
+      }
+    }
+  ],
+  "environment": {
+    "timestamp_utc": "2026-10-19T19:04:45+00:00",
+    "git_commit": "9ae7860",
+    "os": "Darwin 25.5.0 (macOS-26.5-arm64-arm-64bit)",
+    "machine": "arm64",
+    "cpu": "Apple M3 Pro",
+    "logical_cpus": 11,
+    "ram_gb": 18.0,
+    "ram_available_gb_at_start": 4.1,
+    "swap_used_gb_at_start": 9.9,
+    "python": "3.12.7",
+    "torch_threads": 4,
+    "omp_num_threads": "1",
+    "mps_available": true,
+    "cuda_available": false,
+    "packages": {
+      "torch": "2.14.1",
+      "transformers": "5.20.1",
+      "sentence-transformers": "6.1.0",
+      "faiss-cpu": "1.15.1",
+      "pymupdf": "2.0",
+      "langchain-core": "1.6.12",
+      "langchain-text-splitters": "1.1.3",
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "streamlit": "1.66.0",
+      "rank-bm25": "0.2.2"
+    },
+    "models": {
+      "sentence-transformers/all-MiniLM-L6-v2": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+      "cross-encoder/ms-marco-MiniLM-L-6-v2": "c5ee24cb16019beea0893ab7796b1df96625c6b8",
+      "Qwen/Qwen2.5-1.5B-Instruct": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+    }
+  },
+  "command": "python benchmarks/benchmark_concurrency.py --retrieval-requests 10 --generation-requests 2 --max-new-tokens 64"
+}

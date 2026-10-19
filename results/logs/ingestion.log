@@ -1,0 +1,9 @@
+synthetic_10p.pdf        pages=  10 chunks=   21 total=     170ms (extract 38 / embed 129) 59 pages/s
+synthetic_50p.pdf        pages=  50 chunks=  103 total=     874ms (extract 170 / embed 699) 57 pages/s
+synthetic_100p.pdf       pages= 100 chunks=  216 total=    1801ms (extract 340 / embed 1453) 56 pages/s
+synthetic_200p.pdf       pages= 200 chunks=  431 total=    3507ms (extract 673 / embed 2819) 57 pages/s
+NIST.AI.100-1.pdf        pages=  48 chunks=  148 total=    1598ms (extract 239 / embed 1353) 30 pages/s
+NIST.SP.800-37r2.pdf     pages= 183 chunks=  803 total=   10761ms (extract 1511 / embed 9230) 17 pages/s
+NIST.SP.800-61r2.pdf     pages=  80 chunks=  321 total=    3841ms (extract 533 / embed 3243) 21 pages/s
+NIST.SP.800-63b.pdf      pages=  80 chunks=  260 total=    3276ms (extract 480 / embed 2789) 24 pages/s
+results -> /Users/raahul/Desktop/Projects/querydoc-ai/results/ingestion

@@ -6,13 +6,15 @@ All values can be overridden with environment variables prefixed ``QUERYDOC_``
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+T = TypeVar("T")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 ChunkStrategy = Literal["fixed", "recursive", "sentence"]
@@ -34,8 +36,8 @@ class Settings(BaseSettings):
 
     # Chunking
     chunk_strategy: ChunkStrategy = "recursive"
-    chunk_size: int = 500
-    chunk_overlap: int = 100
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
     min_chunk_chars: int = 40
 
     # Embeddings
@@ -63,7 +65,8 @@ class Settings(BaseSettings):
     min_relevance_score: float = 0.25
 
     # Generation
-    llm_model: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    # 1.5B chosen over 0.5B on measured answer accuracy (results/generation); 0.5B is the low-memory option.
+    llm_model: str = "Qwen/Qwen2.5-1.5B-Instruct"
     llm_device: DeviceName = "auto"
     max_new_tokens: int = 256
     temperature: float = 0.0
@@ -91,6 +94,19 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
+
+
+def load_local_first(loader: Callable[..., T], name: str) -> T:
+    """Call ``loader(local_files_only=True)`` and fall back to a network download only
+    when the model is not in the local Hugging Face cache. Cached models therefore
+    load without any network round trip (a stalled Hub request once blocked app startup)."""
+    try:
+        return loader(local_files_only=True)
+    except Exception as exc:  # not cached (or incomplete cache): download once
+        from querydoc.logging_utils import get_logger, kv
+
+        get_logger(__name__).info(kv("model_not_cached_downloading", model=name, reason=type(exc).__name__))
+        return loader(local_files_only=False)
 
 
 def resolve_device(name: str) -> str:

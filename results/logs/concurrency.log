@@ -1,0 +1,11 @@
+retrieval  U= 1 ok=  10/  10 rps=  12.2 p50=   77.0 p95=  109.6 p99=  126.0 rss=1140MB
+retrieval  U= 2 ok=  20/  20 rps=  11.6 p50=  186.8 p95=  197.8 p99=  199.5 rss=1143MB
+retrieval  U= 5 ok=  50/  50 rps=  11.9 p50=  414.7 p95=  516.1 p99=  523.2 rss=1161MB
+retrieval  U=10 ok= 100/ 100 rps=  12.1 p50=  814.2 p95=  935.3 p99=  971.9 rss=1169MB
+retrieval  U=20 ok= 200/ 200 rps=  12.5 p50= 1593.8 p95= 1711.4 p99= 1751.1 rss=1174MB
+generation U= 1 ok=  2/  2 rps= 0.45 p50=    2222 p95=    2699 errors={} rss=511MB
+generation U= 2 ok=  4/  4 rps= 0.46 p50=    2213 p95=    6475 errors={} rss=549MB
+generation U= 5 ok= 10/ 10 rps= 0.45 p50=    2729 p95=   18822 errors={} rss=654MB
+generation U=10 ok= 14/ 20 rps= 0.07 p50=   21732 p95=   98048 errors={'QueueFullError': 3, 'GenerationTimeoutError': 3} rss=659MB
+generation U=20 ok= 13/ 40 rps= 0.06 p50=   37289 p95=  103739 errors={'QueueFullError': 23, 'GenerationTimeoutError': 4} rss=560MB
+results -> /Users/raahul/Desktop/Projects/querydoc-ai/results/concurrency

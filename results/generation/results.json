@@ -1,0 +1,147 @@
+{
+  "experiment": "local generation latency and grounded answer quality",
+  "split": "test",
+  "max_new_tokens": 128,
+  "retrieval_config": {
+    "top_k": 5,
+    "fetch_k": 30,
+    "use_hybrid": true,
+    "use_mmr": false,
+    "mmr_lambda": 0.7,
+    "use_rerank": true,
+    "rerank_k": 20,
+    "dedup": true,
+    "preprocess_query": true,
+    "doc_ids": null
+  },
+  "summary": {
+    "Qwen/Qwen2.5-0.5B-Instruct": {
+      "device": "mps",
+      "revision": null,
+      "load_seconds": 0.9614797080284916,
+      "answerable": 31,
+      "answer_accuracy": 0.4838709677419355,
+      "cited_rate": 0.6451612903225806,
+      "model_tagged_rate": 0.06451612903225806,
+      "generated_rate": 0.9032258064516129,
+      "citation_on_evidence_rate": 0.41935483870967744,
+      "status_counts": {
+        "verified": 20,
+        "unverified": 8,
+        "insufficient_evidence": 3
+      },
+      "invalid_tags_removed": 0,
+      "unanswerable_declined_rate": 0.8333333333333334,
+      "end_to_end_latency": {
+        "n": 28,
+        "mean_ms": 612.5564166806206,
+        "stdev_ms": 241.16956557892883,
+        "p50_ms": 528.2547294918913,
+        "p95_ms": 1073.144375532865,
+        "p99_ms": 1373.7608239182737,
+        "max_ms": 1451.4504999970086
+      },
+      "generation_latency": {
+        "n": 28,
+        "mean_ms": 520.7207530017643,
+        "stdev_ms": 245.98846689078954,
+        "p50_ms": 420.57714553084224,
+        "p95_ms": 985.9724459442074,
+        "p99_ms": 1289.8832805780694,
+        "max_ms": 1369.229957985226
+      },
+      "ttft": {
+        "n": 28,
+        "mean_ms": 326.89138246184615,
+        "stdev_ms": 34.074826381917894,
+        "p50_ms": 319.28966598934494,
+        "p95_ms": 387.7260312263388,
+        "p99_ms": 393.84119313559495,
+        "max_ms": 395.26241697603837
+      },
+      "tokens_per_second_mean": 25.748574424395105,
+      "mean_completion_tokens": 16.928571428571427
+    },
+    "Qwen/Qwen2.5-1.5B-Instruct": {
+      "device": "mps",
+      "revision": null,
+      "load_seconds": 6.493467000022065,
+      "answerable": 31,
+      "answer_accuracy": 0.8387096774193549,
+      "cited_rate": 0.967741935483871,
+      "model_tagged_rate": 0.6451612903225806,
+      "generated_rate": 0.967741935483871,
+      "citation_on_evidence_rate": 0.7096774193548387,
+      "status_counts": {
+        "verified": 26,
+        "partially_verified": 4,
+        "insufficient_evidence": 1
+      },
+      "invalid_tags_removed": 0,
+      "unanswerable_declined_rate": 0.8333333333333334,
+      "end_to_end_latency": {
+        "n": 30,
+        "mean_ms": 2290.6879681686405,
+        "stdev_ms": 1060.7697141888682,
+        "p50_ms": 1910.553729510866,
+        "p95_ms": 4414.274229647708,
+        "p99_ms": 4556.009864481748,
+        "max_ms": 4605.875291978009
+      },
+      "generation_latency": {
+        "n": 30,
+        "mean_ms": 2189.847216702765,
+        "stdev_ms": 1058.5808427890668,
+        "p50_ms": 1812.626103986986,
+        "p95_ms": 4318.169808329549,
+        "p99_ms": 4453.371516221669,
+        "max_ms": 4494.356709008571
+      },
+      "ttft": {
+        "n": 30,
+        "mean_ms": 946.5305138670374,
+        "stdev_ms": 58.382084286998754,
+        "p50_ms": 959.228208521381,
+        "p95_ms": 1031.2695977190742,
+        "p99_ms": 1075.2558893797686,
+        "max_ms": 1090.42512497399
+      },
+      "tokens_per_second_mean": 18.209576144813756,
+      "mean_completion_tokens": 46.666666666666664
+    }
+  },
+  "environment": {
+    "timestamp_utc": "2026-10-19T18:51:01+00:00",
+    "git_commit": "9ae7860",
+    "os": "Darwin 25.5.0 (macOS-26.5-arm64-arm-64bit)",
+    "machine": "arm64",
+    "cpu": "Apple M3 Pro",
+    "logical_cpus": 11,
+    "ram_gb": 18.0,
+    "ram_available_gb_at_start": 4.2,
+    "swap_used_gb_at_start": 12.0,
+    "python": "3.12.7",
+    "torch_threads": 4,
+    "omp_num_threads": "1",
+    "mps_available": true,
+    "cuda_available": false,
+    "packages": {
+      "torch": "2.14.1",
+      "transformers": "5.20.1",
+      "sentence-transformers": "6.1.0",
+      "faiss-cpu": "1.15.1",
+      "pymupdf": "2.0",
+      "langchain-core": "1.6.12",
+      "langchain-text-splitters": "1.1.3",
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "streamlit": "1.66.0",
+      "rank-bm25": "0.2.2"
+    },
+    "models": {
+      "Qwen/Qwen2.5-0.5B-Instruct": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "Qwen/Qwen2.5-1.5B-Instruct": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+    }
+  },
+  "command": "python benchmarks/benchmark_generation.py --models Qwen/Qwen2.5-0.5B-Instruct Qwen/Qwen2.5-1.5B-Instruct"
+}

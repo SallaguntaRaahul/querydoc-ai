@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
 import os
@@ -49,10 +50,8 @@ def environment(models: Iterable[str] = ()) -> dict[str, Any]:
 
     cpu = platform.processor()
     if sys.platform == "darwin":
-        try:
+        with contextlib.suppress(Exception):
             cpu = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], text=True).strip()
-        except Exception:
-            pass
     try:
         git = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True).strip()
     except Exception:

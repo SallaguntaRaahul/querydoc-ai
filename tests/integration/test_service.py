@@ -114,3 +114,43 @@ def test_concurrent_retrieval_during_ingest(service):
     # the persisted index must still load and agree with memory
     reopened = QueryDocService(service.settings, embedder=service.embedder)
     assert reopened.store.size == service.store.size
+
+
+def test_generation_requests_are_bounded_before_retrieval(service, monkeypatch):
+    """Requests beyond max_active + max_queue fail fast instead of queueing unboundedly."""
+    import threading
+
+    from querydoc.exceptions import QueueFullError
+    from querydoc.services.concurrency import GenerationGate
+
+    data, facts = make_synthetic_pdf(10, seed=9)
+    service.ingest(data, "gate.pdf")
+    service.gate = GenerationGate(max_active=1, max_queue=1, timeout_s=10)
+    release = threading.Event()
+    real_answer = service._answer
+
+    def slow_answer(question, cfg, params, generate, started, wait_ms):
+        release.wait(5)  # hold the slot; skip the LLM so the test needs no model
+        return real_answer(question, cfg, params, False, started, wait_ms)
+
+    monkeypatch.setattr(service, "_answer", slow_answer)
+    results: list[object] = []
+
+    def call():
+        try:
+            results.append(service.answer(facts[0].question))
+        except QueueFullError as exc:
+            results.append(exc)
+
+    threads = [threading.Thread(target=call) for _ in range(4)]
+    for t in threads:
+        t.start()
+    import time
+
+    time.sleep(0.3)
+    release.set()
+    for t in threads:
+        t.join()
+    rejected = [r for r in results if isinstance(r, QueueFullError)]
+    assert len(rejected) == 2  # 1 active + 1 queued admitted, 2 rejected
+    assert service.gate.active == 0 and service.gate.waiting == 0

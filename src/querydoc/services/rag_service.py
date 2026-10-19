@@ -33,7 +33,7 @@ from querydoc.exceptions import (
 )
 from querydoc.generation.llm import GenerationParams, GenerationResult, LocalLLM
 from querydoc.generation.prompts import INSUFFICIENT_MESSAGE, build_prompt
-from querydoc.ingestion.pdf_loader import content_hash, doc_id_from_hash, extract_pdf
+from querydoc.ingestion.pdf_loader import content_hash, extract_pdf
 from querydoc.logging_utils import get_logger, kv
 from querydoc.retrieval.retriever import Reranker, RetrievalConfig, RetrievalResult, Retriever
 from querydoc.services.concurrency import GenerationGate
@@ -150,7 +150,7 @@ class QueryDocService:
     # ------------------------------------------------------------ documents
     def chunking_config(self, **overrides: object) -> ChunkingConfig:
         s = self.settings
-        base = dict(
+        base: dict[str, object] = dict(
             strategy=s.chunk_strategy,
             chunk_size=s.chunk_size,
             chunk_overlap=s.chunk_overlap,
@@ -304,17 +304,37 @@ class QueryDocService:
         *,
         generate: bool = True,
     ) -> RAGResponse:
-        s = self.settings
+        """Retrieve, generate and verify. Requests that will generate take a
+        GenerationGate slot *before* retrieval, so the queue bound and timeout
+        cover the whole request (retrieval also uses the shared GPU); requests
+        beyond the bound fail fast with QueueFullError. Retrieval-only calls
+        are not gated."""
         started = time.perf_counter()
         question = question.strip()
         if not question:
             raise QueryDocError("Please enter a question.")
         if self.store.size == 0:
             raise QueryDocError("No documents are indexed yet. Upload a PDF first.")
+        if not generate:
+            return self._answer(question, cfg, params, False, started, None)
+        with self.gate.slot() as wait_ms:
+            return self._answer(question, cfg, params, True, started, wait_ms)
+
+    def _answer(
+        self,
+        question: str,
+        cfg: RetrievalConfig | None,
+        params: GenerationParams | None,
+        generate: bool,
+        started: float,
+        queue_wait_ms: float | None,
+    ) -> RAGResponse:
+        s = self.settings
         cfg = cfg or self.retrieval_config()
+        timings: dict[str, float] = {} if queue_wait_ms is None else {"queue_wait": queue_wait_ms}
         retrieval = self.retrieve(question, cfg)
         allowed = set(cfg.doc_ids) if cfg.doc_ids is not None else self.store.doc_ids()
-        timings = {"retrieval": retrieval.latency_ms}
+        timings["retrieval"] = retrieval.latency_ms
 
         def done(resp: RAGResponse) -> RAGResponse:
             resp.timings_ms["total"] = (time.perf_counter() - started) * 1000
@@ -358,17 +378,15 @@ class QueryDocService:
         params = params or GenerationParams(
             max_new_tokens=s.max_new_tokens, temperature=s.temperature, top_p=s.top_p
         )
-        with self.gate.slot() as wait_ms:
-            timings["queue_wait"] = wait_ms
-            t = time.perf_counter()
-            prompt = build_prompt(
-                question,
-                retrieval.chunks,
-                max_context_tokens=s.max_context_tokens,
-                count_tokens=llm.count_tokens,
-            )
-            timings["prompt"] = (time.perf_counter() - t) * 1000
-            gen = llm.generate(prompt.messages, params)
+        t = time.perf_counter()
+        prompt = build_prompt(
+            question,
+            retrieval.chunks,
+            max_context_tokens=s.max_context_tokens,
+            count_tokens=llm.count_tokens,
+        )
+        timings["prompt"] = (time.perf_counter() - t) * 1000
+        gen = llm.generate(prompt.messages, params)
         timings["generation"] = gen.latency_ms
 
         t = time.perf_counter()
@@ -376,12 +394,17 @@ class QueryDocService:
             gen.text, prompt.sources, allowed_doc_ids=allowed, chunk_lookup=self.store.get_chunk
         )
         timings["citation_check"] = (time.perf_counter() - t) * 1000
+        safety_notes = (
+            [f"Possible prompt injection: instruction-like text in {', '.join(prompt.flagged_sources)} "
+             "was redacted before generation."]
+            if prompt.flagged_sources else []
+        )
         if report.status == STATUS_INSUFFICIENT:
             return done(
                 RAGResponse(question, INSUFFICIENT_MESSAGE, STATUS_INSUFFICIENT, "insufficient_evidence",
-                            report, retrieval, gen, timings, ["The model reported insufficient evidence."])
+                            report, retrieval, gen, timings, ["The model reported insufficient evidence.", *safety_notes])
             )
         return done(
             RAGResponse(question, report.answer, report.status, "generated", report, retrieval, gen, timings,
-                        list(report.notes))
+                        [*safety_notes, *report.notes])
         )

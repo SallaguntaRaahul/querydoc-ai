@@ -6,8 +6,9 @@ prompt states that source content is untrusted data, never instructions.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -41,18 +42,54 @@ _TEMPLATE = ChatPromptTemplate.from_messages(
 )
 
 
+# Heuristic patterns for text addressed to an AI assistant rather than to a human reader.
+# Defence in depth only: it catches common injection phrasing, not every possible attack.
+_INJECTION_RE = re.compile(
+    r"(ignore|disregard|forget|override)\s+(all\s+|any\s+)?(the\s+)?(previous|prior|above|earlier|system)\s+"
+    r"(instructions|rules|prompts?|messages)"
+    r"|\byou\s+are\s+now\b"
+    r"|\b(reply|respond|answer|output|say)\s+(only\s+)?with\s+(only\s+)?(the\s+)?(word|phrase|text|string)\b"
+    r"|\bsystem\s+prompt\b"
+    r"|\bdo\s+not\s+cite\b"
+    r"|\bas\s+an\s+ai\b",
+    re.IGNORECASE,
+)
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+REDACTED = "[redacted: text in the document that addresses an AI assistant]"
+
+
+def sanitize_source_text(text: str) -> tuple[str, bool]:
+    """Redact sentences that look like instructions to the assistant."""
+    parts = _SENTENCE_SPLIT_RE.split(text)
+    flagged = False
+    out = []
+    for part in parts:
+        if _INJECTION_RE.search(part):
+            flagged = True
+            out.append(REDACTED)
+        else:
+            out.append(part)
+    return " ".join(out) if flagged else text, flagged
+
+
 @dataclass
 class BuiltPrompt:
     messages: list[dict[str, str]]
     sources: list[RetrievedChunk]  # sources[i] is tag S{i+1}
     context_tokens: int
+    flagged_sources: list[str] = field(default_factory=list)  # tags whose text was redacted
 
 
 def format_source(tag: str, item: RetrievedChunk) -> str:
+    return _format_source(tag, item)[0]
+
+
+def _format_source(tag: str, item: RetrievedChunk) -> tuple[str, bool]:
     c = item.chunk
+    body, flagged = sanitize_source_text(c.text)
     # Neutralise anything that could close our delimiter early.
-    body = c.text.replace("</source>", "</ source>")
-    return f'<source id="{tag}" file="{c.source}" pages="{c.pages_label}">\n{body}\n</source>'
+    body = body.replace("</source>", "</ source>")
+    return f'<source id="{tag}" file="{c.source}" pages="{c.pages_label}">\n{body}\n</source>', flagged
 
 
 def build_prompt(
@@ -65,16 +102,20 @@ def build_prompt(
     """Add sources in rank order until the context-token budget is reached."""
     blocks: list[str] = []
     used: list[RetrievedChunk] = []
+    flagged: list[str] = []
     total = 0
     for item in retrieved:
-        block = format_source(f"S{len(used) + 1}", item)
+        tag = f"S{len(used) + 1}"
+        block, was_flagged = _format_source(tag, item)
         n = count_tokens(block)
         if used and total + n > max_context_tokens:
             break
         blocks.append(block)
         used.append(item)
+        if was_flagged:
+            flagged.append(tag)
         total += n
     value = _TEMPLATE.format_messages(system=SYSTEM_PROMPT, context="\n\n".join(blocks), question=question)
     role = {"system": "system", "human": "user", "ai": "assistant"}
     messages = [{"role": role[m.type], "content": str(m.content)} for m in value]
-    return BuiltPrompt(messages=messages, sources=used, context_tokens=total)
+    return BuiltPrompt(messages=messages, sources=used, context_tokens=total, flagged_sources=flagged)

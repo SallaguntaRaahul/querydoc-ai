@@ -8,8 +8,10 @@ import threading
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
+from typing import Any
 
-from querydoc.config import resolve_device
+from querydoc.config import load_local_first, resolve_device
+from querydoc.devices import device_lock
 from querydoc.exceptions import GenerationError, GenerationUnavailableError
 from querydoc.logging_utils import get_logger, kv
 
@@ -52,10 +54,17 @@ class LocalLLM:
             from transformers import AutoModelForCausalLM, AutoTokenizer
 
             dtype = torch.float16 if self.device in {"cuda", "mps"} else torch.float32
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name, local_files_only=local_files_only)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_name, dtype=dtype, local_files_only=local_files_only
-            ).to(self.device)
+            if local_files_only:
+                self.tokenizer = AutoTokenizer.from_pretrained(model_name, local_files_only=True)
+                model = AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype, local_files_only=True)
+            else:
+                self.tokenizer = load_local_first(
+                    lambda **kw: AutoTokenizer.from_pretrained(model_name, **kw), model_name
+                )
+                model = load_local_first(
+                    lambda **kw: AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype, **kw), model_name
+                )
+            self.model = model.to(self.device)
             self.model.eval()
             self.revision = getattr(self.model.config, "_commit_hash", None)
         except Exception as exc:
@@ -68,9 +77,10 @@ class LocalLLM:
     def count_tokens(self, text: str) -> int:
         return len(self.tokenizer.encode(text, add_special_tokens=False))
 
-    def _inputs(self, messages: list[dict[str, str]]):  # type: ignore[no-untyped-def]
+    def _inputs(self, messages: list[dict[str, str]]) -> Any:
+        """Tokenised prompt on CPU; moved to the device inside the device lock."""
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        return self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        return self.tokenizer(prompt, return_tensors="pt")
 
     def stream(self, messages: list[dict[str, str]], params: GenerationParams) -> Iterator[str]:
         """Yield text fragments as they are generated."""
@@ -78,8 +88,7 @@ class LocalLLM:
 
         inputs = self._inputs(messages)
         streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
-        kwargs = dict(
-            **inputs,
+        kwargs: dict[str, object] = dict(
             streamer=streamer,
             max_new_tokens=params.max_new_tokens,
             repetition_penalty=params.repetition_penalty,
@@ -102,7 +111,9 @@ class LocalLLM:
                 error.append(exc)
                 streamer.end()
 
-        with self._lock:
+        with self._lock, device_lock(self.device):
+            on_device = inputs.to(self.device)
+            kwargs.update(input_ids=on_device["input_ids"], attention_mask=on_device["attention_mask"])
             worker = threading.Thread(target=run, daemon=True)
             worker.start()
             yield from streamer

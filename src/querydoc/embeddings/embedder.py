@@ -11,7 +11,8 @@ from pathlib import Path
 
 import numpy as np
 
-from querydoc.config import resolve_device
+from querydoc.config import load_local_first, resolve_device
+from querydoc.devices import device_lock
 from querydoc.logging_utils import get_logger, kv
 
 log = get_logger(__name__)
@@ -129,9 +130,14 @@ class Embedder:
         self.device = resolve_device(device)
         self.batch_size = batch_size
         started = time.perf_counter()
-        self.model = SentenceTransformer(model_name, device=self.device)
-        self.dim = int(self.model.get_embedding_dimension())
-        self.max_seq_length = int(self.model.max_seq_length)
+        self.model = load_local_first(
+            lambda **kw: SentenceTransformer(model_name, device=self.device, **kw), model_name
+        )
+        dim = self.model.get_embedding_dimension()
+        if dim is None:
+            raise ValueError(f"{model_name} does not report an embedding dimension")
+        self.dim = int(dim)
+        self.max_seq_length = int(self.model.max_seq_length or 0)
         self.load_seconds = time.perf_counter() - started
         # HF fast tokenizers are not safe to call from several threads at once.
         self._lock = threading.Lock()
@@ -143,7 +149,7 @@ class Embedder:
         log.info(kv("embedder_loaded", model=model_name, device=self.device, dim=self.dim))
 
     def _encode(self, texts: Sequence[str], batch_size: int) -> np.ndarray:
-        with self._lock:
+        with self._lock, device_lock(self.device):
             out = self.model.encode(
                 list(texts),
                 batch_size=batch_size,

@@ -1,0 +1,277 @@
+{
+  "experiment": "embedding peak memory and throughput vs batching strategy",
+  "document": "NIST.SP.800-37r2.pdf",
+  "chunking": {
+    "strategy": "recursive",
+    "chunk_size": 1000,
+    "chunk_overlap": 200
+  },
+  "measurement": "psutil RSS sampled every 5 ms in a fresh subprocess per run; CPU inference",
+  "repeats": 3,
+  "aggregate": {
+    "single_pass": {
+      "peak_rss_mb": {
+        "mean": 4502.333333333333,
+        "stdev": 85.11981779915567
+      },
+      "embedding_working_set_mb": {
+        "mean": 3733.8541666666665,
+        "stdev": 87.23462035012366
+      },
+      "chunks_per_second": {
+        "mean": 46.266664795727536,
+        "stdev": 8.37113063015649
+      },
+      "seconds": {
+        "mean": 17.789435902649227,
+        "stdev": 3.59411589672418
+      },
+      "chunks": 803
+    },
+    "batch_1": {
+      "peak_rss_mb": {
+        "mean": 740.9895833333334,
+        "stdev": 58.37065932849061
+      },
+      "embedding_working_set_mb": {
+        "mean": 33.244791666666664,
+        "stdev": 0.9471293662738651
+      },
+      "chunks_per_second": {
+        "mean": 106.12579910172785,
+        "stdev": 0.7781139189661106
+      },
+      "seconds": {
+        "mean": 7.566763610986527,
+        "stdev": 0.05558640166017322
+      },
+      "chunks": 803
+    },
+    "batch_8": {
+      "peak_rss_mb": {
+        "mean": 864.71875,
+        "stdev": 4.925692963621971
+      },
+      "embedding_working_set_mb": {
+        "mean": 94.9375,
+        "stdev": 4.319372919982135
+      },
+      "chunks_per_second": {
+        "mean": 103.34063013591525,
+        "stdev": 4.737889601231806
+      },
+      "seconds": {
+        "mean": 7.781620041680678,
+        "stdev": 0.3664665167266161
+      },
+      "chunks": 803
+    },
+    "batch_16": {
+      "peak_rss_mb": {
+        "mean": 880.0625,
+        "stdev": 46.29912140179471
+      },
+      "embedding_working_set_mb": {
+        "mean": 117.79166666666667,
+        "stdev": 37.55387514506936
+      },
+      "chunks_per_second": {
+        "mean": 97.44021023710401,
+        "stdev": 8.646526706134305
+      },
+      "seconds": {
+        "mean": 8.286776638648007,
+        "stdev": 0.774653378285767
+      },
+      "chunks": 803
+    },
+    "batch_32": {
+      "peak_rss_mb": {
+        "mean": 962.3385416666666,
+        "stdev": 28.57715678604081
+      },
+      "embedding_working_set_mb": {
+        "mean": 205.11458333333334,
+        "stdev": 8.480566210767318
+      },
+      "chunks_per_second": {
+        "mean": 85.14122435130433,
+        "stdev": 8.880899495191208
+      },
+      "seconds": {
+        "mean": 9.504398292357413,
+        "stdev": 1.050185244400182
+      },
+      "chunks": 803
+    },
+    "batch_64": {
+      "peak_rss_mb": {
+        "mean": 1209.6458333333333,
+        "stdev": 89.27821236154966
+      },
+      "embedding_working_set_mb": {
+        "mean": 441.3489583333333,
+        "stdev": 89.00264756054428
+      },
+      "chunks_per_second": {
+        "mean": 92.66623355986673,
+        "stdev": 9.04154718922999
+      },
+      "seconds": {
+        "mean": 8.724083235991808,
+        "stdev": 0.9005793852120748
+      },
+      "chunks": 803
+    },
+    "batch_128": {
+      "peak_rss_mb": {
+        "mean": 1493.4114583333333,
+        "stdev": 152.74617228522115
+      },
+      "embedding_working_set_mb": {
+        "mean": 724.4739583333334,
+        "stdev": 152.53427215856345
+      },
+      "chunks_per_second": {
+        "mean": 87.71935780974191,
+        "stdev": 11.583380206688373
+      },
+      "seconds": {
+        "mean": 9.269308582996018,
+        "stdev": 1.3087565208622218
+      },
+      "chunks": 803
+    },
+    "batch_256": {
+      "peak_rss_mb": {
+        "mean": 2056.3125,
+        "stdev": 156.8405862091247
+      },
+      "embedding_working_set_mb": {
+        "mean": 1287.4739583333333,
+        "stdev": 156.2764152150732
+      },
+      "chunks_per_second": {
+        "mean": 84.68835778004627,
+        "stdev": 12.606595050996239
+      },
+      "seconds": {
+        "mean": 9.634758485985609,
+        "stdev": 1.5430827493330204
+      },
+      "chunks": 803
+    },
+    "streaming_16": {
+      "peak_rss_mb": {
+        "mean": 938.3958333333334,
+        "stdev": 2.082662652461587
+      },
+      "embedding_working_set_mb": {
+        "mean": 169.546875,
+        "stdev": 1.446895248238448
+      },
+      "chunks_per_second": {
+        "mean": 92.64607624068897,
+        "stdev": 1.9884049968113475
+      },
+      "seconds": {
+        "mean": 8.67005009733839,
+        "stdev": 0.18568195716265398
+      },
+      "chunks": 803
+    },
+    "streaming_32": {
+      "peak_rss_mb": {
+        "mean": 969.8385416666666,
+        "stdev": 1.4204434185170254
+      },
+      "embedding_working_set_mb": {
+        "mean": 202.61458333333334,
+        "stdev": 1.3193953298607408
+      },
+      "chunks_per_second": {
+        "mean": 80.74684211171875,
+        "stdev": 3.993128380085201
+      },
+      "seconds": {
+        "mean": 9.960528611341337,
+        "stdev": 0.4813524198066225
+      },
+      "chunks": 803
+    },
+    "streaming_64": {
+      "peak_rss_mb": {
+        "mean": 1233.6302083333333,
+        "stdev": 122.54711738681456
+      },
+      "embedding_working_set_mb": {
+        "mean": 529.1614583333334,
+        "stdev": 11.181784649272599
+      },
+      "chunks_per_second": {
+        "mean": 88.5490018292143,
+        "stdev": 5.2956246318119415
+      },
+      "seconds": {
+        "mean": 9.090717750310432,
+        "stdev": 0.5592553427116003
+      },
+      "chunks": 803
+    }
+  },
+  "comparisons": {
+    "single_pass_vs_streaming_32": {
+      "peak_rss_reduction_pct": 78.45920171022433,
+      "working_set_reduction_pct": 94.57358069465755,
+      "throughput_change_pct": 74.52488193870256
+    },
+    "batch_256_vs_streaming_32": {
+      "peak_rss_reduction_pct": 52.83603335258301,
+      "working_set_reduction_pct": 84.26262667125145,
+      "throughput_change_pct": -4.654141102327758
+    },
+    "batch_128_vs_streaming_32": {
+      "peak_rss_reduction_pct": 35.058852250335676,
+      "working_set_reduction_pct": 72.03286867626653,
+      "throughput_change_pct": -7.948662498357695
+    },
+    "batch_32_vs_streaming_32": {
+      "peak_rss_reduction_pct": -0.7793515145938984,
+      "working_set_reduction_pct": 1.218830937991976,
+      "throughput_change_pct": -5.161286172552271
+    }
+  },
+  "environment": {
+    "timestamp_utc": "2026-10-19T18:28:22+00:00",
+    "git_commit": "9ae7860",
+    "os": "Darwin 25.5.0 (macOS-26.5-arm64-arm-64bit)",
+    "machine": "arm64",
+    "cpu": "Apple M3 Pro",
+    "logical_cpus": 11,
+    "ram_gb": 18.0,
+    "ram_available_gb_at_start": 6.3,
+    "swap_used_gb_at_start": 8.9,
+    "python": "3.12.7",
+    "torch_threads": 1,
+    "omp_num_threads": "1",
+    "mps_available": true,
+    "cuda_available": false,
+    "packages": {
+      "torch": "2.14.1",
+      "transformers": "5.20.1",
+      "sentence-transformers": "6.1.0",
+      "faiss-cpu": "1.15.1",
+      "pymupdf": "2.0",
+      "langchain-core": "1.6.12",
+      "langchain-text-splitters": "1.1.3",
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "streamlit": "1.66.0",
+      "rank-bm25": "0.2.2"
+    },
+    "models": {
+      "sentence-transformers/all-MiniLM-L6-v2": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+    }
+  },
+  "command": "python benchmarks/benchmark_embeddings.py --repeats 3 --doc NIST.SP.800-37r2.pdf --chunk-size 1000 --chunk-overlap 200"
+}

@@ -16,7 +16,11 @@ from querydoc.chunking.chunkers import Chunk
 from querydoc.generation.prompts import INSUFFICIENT_TOKEN
 from querydoc.retrieval.retriever import RetrievedChunk, tokenize
 
-_TAG_GROUP_RE = re.compile(r"\[\s*(S\s*\d+(?:\s*[,;]\s*S?\s*\d+)*)\s*\]", re.IGNORECASE)
+# Accepts [S1], [S1, S3], [S2][S4] and the "[Source S2]" / "[Sources S1, S2]" variants small
+# models produce. Bare numbers such as "[26]" are not accepted: they are not our tags.
+_TAG_GROUP_RE = re.compile(
+    r"\[\s*(?:sources?\s*:?\s*)?(S\s*\d+(?:\s*(?:[,;]|and)\s*S?\s*\d+)*)\s*\]", re.IGNORECASE
+)
 _NUM_RE = re.compile(r"\d+")
 _SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 SUPPORT_THRESHOLD = 0.5
@@ -38,6 +42,7 @@ class Citation:
     excerpt: str
     retrieval_score: float
     support: float  # fraction of the claim's content words found in the chunk
+    method: str = "model"  # "model": tag written by the LLM; "attributed": added by post-hoc alignment
 
     @property
     def pages_label(self) -> str:
@@ -94,6 +99,7 @@ def verify_answer(
     *,
     allowed_doc_ids: set[str] | None = None,
     chunk_lookup: Callable[[str], Chunk | None] | None = None,
+    attribute_untagged: bool = True,
 ) -> CitationReport:
     text = answer.strip()
     if not text or INSUFFICIENT_TOKEN in text.upper().replace(" ", "_"):
@@ -133,10 +139,22 @@ def verify_answer(
 
     claims: list[ClaimCheck] = []
     best_for_tag: dict[str, tuple[float, str]] = {}
+    attributed: set[str] = set()
     for sentence in sentences:
         if not tokenize(_TAG_GROUP_RE.sub(" ", sentence)):
             continue  # nothing but tags/punctuation: not a claim
         tags = _tags_in(sentence)
+        if not tags and attribute_untagged and tag_to_source:
+            # Post-hoc alignment: cite the retrieved source that best supports the sentence,
+            # but only when that support clears the same threshold used for verification.
+            best_tag, best_support = max(
+                ((t, _support(sentence, item.chunk.text)) for t, item in tag_to_source.items()),
+                key=lambda x: x[1],
+            )
+            if best_support >= SUPPORT_THRESHOLD:
+                tags = [best_tag]
+                if best_tag not in best_for_tag:
+                    attributed.add(best_tag)
         per_tag = {t: _support(sentence, tag_to_source[t].chunk.text) for t in tags}
         support = max(per_tag.values(), default=0.0)
         claims.append(ClaimCheck(sentence, tags, support, bool(tags) and support >= SUPPORT_THRESHOLD))
@@ -166,12 +184,18 @@ def verify_answer(
                 excerpt=best_excerpt(c.text, sentence),
                 retrieval_score=item.score,
                 support=s,
+                method="attributed" if tag in attributed else "model",
             )
         )
 
     notes: list[str] = []
     if invalid:
         notes.append(f"Removed citations to non-existent sources: {', '.join(invalid)}.")
+    if attributed:
+        notes.append(
+            f"Citation(s) {', '.join(sorted(attributed, key=lambda t: int(t[1:])))} were attached by "
+            "post-hoc alignment (the model did not tag those sentences)."
+        )
     supported = sum(1 for c in claims if c.supported)
     if not citations:
         status = STATUS_UNVERIFIED

@@ -48,10 +48,15 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM"]
-ignore = ["E501"]
+ignore = ["E501", "SIM905"]
 
 [tool.mypy]
 python_version = "3.12"
 ignore_missing_imports = true
 warn_unused_ignores = true
 files = ["src/querydoc"]
+
+[[tool.mypy.overrides]]
+# SWIG/auto-generated stubs for these libraries are inaccurate; treat them as untyped.
+module = ["faiss", "faiss.*", "pymupdf", "pymupdf.*", "transformers", "transformers.*"]
+follow_imports = "skip"

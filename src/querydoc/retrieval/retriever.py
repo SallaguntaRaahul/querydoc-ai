@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from querydoc.chunking.chunkers import Chunk
-from querydoc.config import resolve_device
+from querydoc.config import load_local_first, resolve_device
+from querydoc.devices import device_lock
 from querydoc.embeddings.embedder import Embedder
 from querydoc.ingestion.text_cleaning import clean_text
 from querydoc.logging_utils import get_logger, kv
@@ -22,8 +23,7 @@ log = get_logger(__name__)
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _STOPWORDS = frozenset(
-    "a an and are as at be by can do does for from has have how i in is it its of on or "
-    "should that the this to was what when where which who why will with".split()
+    ["a", "an", "and", "are", "as", "at", "be", "by", "can", "do", "does", "for", "from", "has", "have", "how", "i", "in", "is", "it", "its", "of", "on", "or", "should", "that", "the", "this", "to", "was", "what", "when", "where", "which", "who", "why", "will", "with"]
 )
 RRF_K = 60
 
@@ -120,13 +120,14 @@ class Reranker:
         from sentence_transformers import CrossEncoder
 
         self.model_name = model_name
-        self.model = CrossEncoder(model_name, device=resolve_device(device))
+        self.device = resolve_device(device)
+        self.model = load_local_first(lambda **kw: CrossEncoder(model_name, device=self.device, **kw), model_name)
         self._lock = threading.Lock()
 
     def score(self, query: str, texts: Sequence[str]) -> np.ndarray:
         if not texts:
             return np.zeros(0, dtype=np.float32)
-        with self._lock:
+        with self._lock, device_lock(self.device):
             out = self.model.predict([(query, t) for t in texts], batch_size=32, show_progress_bar=False)
         return np.asarray(out, dtype=np.float32)
 

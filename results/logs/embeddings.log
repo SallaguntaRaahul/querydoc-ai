@@ -1,0 +1,56 @@
+rep0 single_pass    peak=4425MB ws=3656MB 51 chunks/s
+rep0 batch_1        peak=684MB ws=32MB 107 chunks/s
+rep0 batch_8        peak=862MB ws=93MB 106 chunks/s
+rep0 batch_16       peak=905MB ws=138MB 102 chunks/s
+rep0 batch_32       peak=930MB ws=198MB 89 chunks/s
+rep0 batch_64       peak=1262MB ws=493MB 97 chunks/s
+rep0 batch_128      peak=1578MB ws=807MB 92 chunks/s
+rep0 batch_256      peak=2025MB ws=1257MB 89 chunks/s
+rep0 streaming_16   peak=937MB ws=169MB 92 chunks/s
+rep0 streaming_32   peak=971MB ws=203MB 79 chunks/s
+rep0 streaming_64   peak=1304MB ws=536MB 90 chunks/s
+rep1 single_pass    peak=4594MB ws=3828MB 51 chunks/s
+rep1 batch_1        peak=800MB ws=33MB 105 chunks/s
+rep1 batch_8        peak=870MB ws=100MB 98 chunks/s
+rep1 batch_16       peak=827MB ws=74MB 87 chunks/s
+rep1 batch_32       peak=973MB ws=203MB 75 chunks/s
+rep1 batch_64       peak=1107MB ws=339MB 82 chunks/s
+rep1 batch_128      peak=1317MB ws=548MB 75 chunks/s
+rep1 batch_256      peak=1917MB ws=1149MB 71 chunks/s
+rep1 streaming_16   peak=941MB ws=171MB 91 chunks/s
+rep1 streaming_32   peak=969MB ws=201MB 78 chunks/s
+rep1 streaming_64   peak=1092MB ws=516MB 83 chunks/s
+rep2 single_pass    peak=4488MB ws=3718MB 37 chunks/s
+rep2 batch_1        peak=739MB ws=34MB 106 chunks/s
+rep2 batch_8        peak=862MB ws=92MB 106 chunks/s
+rep2 batch_16       peak=908MB ws=141MB 103 chunks/s
+rep2 batch_32       peak=984MB ws=215MB 91 chunks/s
+rep2 batch_64       peak=1260MB ws=492MB 99 chunks/s
+rep2 batch_128      peak=1586MB ws=818MB 97 chunks/s
+rep2 batch_256      peak=2226MB ws=1457MB 95 chunks/s
+rep2 streaming_16   peak=937MB ws=168MB 95 chunks/s
+rep2 streaming_32   peak=969MB ws=203MB 85 chunks/s
+rep2 streaming_64   peak=1304MB ws=536MB 93 chunks/s
+{
+  "single_pass_vs_streaming_32": {
+    "peak_rss_reduction_pct": 78.45920171022433,
+    "working_set_reduction_pct": 94.57358069465755,
+    "throughput_change_pct": 74.52488193870256
+  },
+  "batch_256_vs_streaming_32": {
+    "peak_rss_reduction_pct": 52.83603335258301,
+    "working_set_reduction_pct": 84.26262667125145,
+    "throughput_change_pct": -4.654141102327758
+  },
+  "batch_128_vs_streaming_32": {
+    "peak_rss_reduction_pct": 35.058852250335676,
+    "working_set_reduction_pct": 72.03286867626653,
+    "throughput_change_pct": -7.948662498357695
+  },
+  "batch_32_vs_streaming_32": {
+    "peak_rss_reduction_pct": -0.7793515145938984,
+    "working_set_reduction_pct": 1.218830937991976,
+    "throughput_change_pct": -5.161286172552271
+  }
+}
+results -> /Users/raahul/Desktop/Projects/querydoc-ai/results/embeddings
