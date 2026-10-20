@@ -30,6 +30,10 @@ jobs:
       - run: mypy
       - name: Tests (engine + API; LLM e2e skipped)
         run: pytest -m "not llm" --timeout=900
+        env:
+          # Shared 4-vCPU runner measured 360 ms p95 (vs 175-244 ms on the target Mac);
+          # 600 ms keeps the latency test as a regression guard here.
+          QUERYDOC_LATENCY_BUDGET_MS: "600"
 
   frontend:
     runs-on: ubuntu-latest

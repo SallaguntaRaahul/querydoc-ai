@@ -69,6 +69,7 @@ Performance targets (relevance, latency GPU/CPU, memory, concurrency, generation
 
 - Relevance labels were AI-assisted (one annotator); 63 questions.
 - Generation quality is keyword-scored; small models can give grounded but off-target answers.
+- The latency smoke test asserts p95 < 300 ms locally; CI's shared runner (measured 360 ms p95) uses a 600 ms budget via `QUERYDOC_LATENCY_BUDGET_MS`, so it guards regressions there but does not verify the 300 ms target.
 - OCR is exercised on synthetic image-only PDFs (`test_ocr_recovers_text_from_scanned_pages`, `test_ocr_setting_controls_scanned_uploads`; skipped without Tesseract), not on real-world scans.
 - CUDA, Windows and Safari/Firefox were not exercised (Playwright runs Chromium only). Linux is covered only by the CI backend and frontend jobs.
 - All runs used one laptop under heavy memory pressure (7–13 GB swap in use).

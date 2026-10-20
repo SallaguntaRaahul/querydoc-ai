@@ -1,7 +1,11 @@
 """Performance smoke test: warm retrieval on a 120-page document stays under the
 300 ms target. This is a regression guard; the authoritative numbers come from
-benchmarks/benchmark_retrieval.py (more queries, repeated trials)."""
+benchmarks/benchmark_retrieval.py (more queries, repeated trials).
 
+The 300 ms target is for the development machine (Apple M3 Pro). Shared CI runners are
+slower; CI sets QUERYDOC_LATENCY_BUDGET_MS to keep this a regression guard there."""
+
+import os
 import time
 
 import pytest
@@ -28,4 +32,5 @@ def test_warm_retrieval_p95_under_300ms(tmp_path, embedder, synthetic_120):
         ms.append((time.perf_counter() - t) * 1000)
     ms.sort()
     p95 = ms[int(0.95 * len(ms)) - 1]
-    assert p95 < 300, f"p95 {p95:.1f} ms"
+    budget = float(os.environ.get("QUERYDOC_LATENCY_BUDGET_MS", "300"))
+    assert p95 < budget, f"p95 {p95:.1f} ms (budget {budget:.0f} ms)"
