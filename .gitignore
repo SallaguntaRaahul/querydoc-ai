@@ -25,3 +25,4 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/.vite/
 *.tsbuildinfo
+results/logs/backend_dev.log

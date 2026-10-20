@@ -61,5 +61,6 @@
   "author": "Raahul Sallagunta",
   "engines": {
     "node": ">=22.13"
-  }
+  },
+  "license": "MIT"
 }

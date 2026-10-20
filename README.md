@@ -147,4 +147,4 @@ querydoc-ai/
 
 ## License
 
-**No license has been selected yet.** Choosing one is the author's decision; until a `LICENSE` file is added, all rights are reserved by the author. Third-party components keep their own licenses — notably PyMuPDF is AGPL-3.0 (or commercial), FAISS MIT, Qwen2.5 and the MiniLM models Apache-2.0, shadcn/ui and Radix MIT, react-pdf/PDF.js MIT/Apache-2.0; the NIST evaluation documents are U.S. government works.
+[MIT](LICENSE) © 2026 Raahul Sallagunta. Third-party components keep their own licenses — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (note: PyMuPDF is AGPL-3.0 or commercial).
