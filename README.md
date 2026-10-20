@@ -71,6 +71,15 @@ Production-style local run (one process serves the built UI and the API on :8000
 
 Configuration: environment variables prefixed `QUERYDOC_` (see [.env.example](.env.example)). Data lives in `data/workspace/` (SQLite database, FAISS index, stored PDFs). For local use run it natively: containers on macOS cannot use the Apple GPU.
 
+### Share it from this Mac (free, fastest)
+
+```bash
+./scripts/serve_public.sh          # accounts on, public https://*.trycloudflare.com link via Cloudflare
+```
+
+Uses the Mac's GPU (answers in seconds) and a separate data folder (`data/public/`). The link works only
+while the script runs and the Mac is awake and online, and it changes on every restart.
+
 ### Deploy for other users (free, Oracle Cloud)
 
 The [Dockerfile](Dockerfile) builds one container (React build served by FastAPI, models baked in,

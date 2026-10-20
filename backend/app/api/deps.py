@@ -53,8 +53,9 @@ def get_admin(user: User = Depends(get_user), ctx: AppContext = Depends(get_ctx)
 
 
 def client_ip(request: Request) -> str:
-    # Hugging Face Spaces and most proxies put the client first in X-Forwarded-For.
-    fwd = request.headers.get("x-forwarded-for")
+    """Visitor IP for rate limits: the proxy's header (first entry), else the socket peer."""
+    ctx: AppContext = request.app.state.ctx
+    fwd = request.headers.get(ctx.settings.client_ip_header)
     return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "unknown")
 
 

@@ -29,3 +29,4 @@ results/logs/backend_dev.log
 data/auth-demo/
 deploy/oracle/.env
 deploy/oracle/keys/
+data/public/

@@ -40,6 +40,9 @@ class AppSettings(BaseSettings):
     chat_per_minute: int = 10
     signups_per_hour_per_ip: int = 5
     logins_per_minute_per_ip: int = 10
+    # Header holding the visitor's IP, set by the reverse proxy in front of the app
+    # (cf-connecting-ip behind Cloudflare). Only trust a header your proxy overwrites.
+    client_ip_header: str = "x-forwarded-for"
 
     # Mirror the workspace to a private Hugging Face dataset (hosts with an ephemeral disk).
     # Needs HF_TOKEN with write access in the environment.
