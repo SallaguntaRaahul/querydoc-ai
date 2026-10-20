@@ -6,7 +6,10 @@ from __future__ import annotations
 import concurrent.futures as cf
 import time
 
-from querydoc.evaluation.synthetic import make_synthetic_pdf
+import pytest
+
+from querydoc.evaluation.synthetic import make_scanned_pdf, make_synthetic_pdf
+from querydoc.ingestion.pdf_loader import ocr_available
 from querydoc.services.concurrency import GenerationGate
 from tests.api.conftest import StubLLM, build_client, sse_events, upload, wait_ready
 
@@ -79,6 +82,20 @@ def test_failed_ingestion_is_reported(client):
     r = client.post(f"{API}/documents/upload", files=[("files", ("scan.pdf", scanned, "application/pdf"))])
     final = wait_ready(client, r.json()["documents"][0]["id"])
     assert final["status"] == "failed" and "OCR is disabled" in final["error"]
+
+
+def test_ocr_setting_controls_scanned_uploads(client):
+    opts = client.get(f"{API}/settings").json()["options"]
+    assert opts["ocr_available"] is ocr_available()
+    r = client.put(f"{API}/settings", json={"enable_ocr": True})
+    if not ocr_available():
+        assert r.status_code == 409 and "Tesseract" in r.json()["error"]["message"]
+        pytest.skip("Tesseract not installed")
+    assert r.status_code == 200 and r.json()["settings"]["enable_ocr"] is True
+    scan = make_scanned_pdf(["Backups are encrypted with AES-256.", "Restores are tested every quarter."])
+    doc = upload(client, "scan.pdf", scan)
+    assert doc["status"] == "ready" and doc["chunk_count"] >= 1 and doc["scanned_pages"] == []
+    assert client.put(f"{API}/settings", json={"enable_ocr": False}).json()["settings"]["enable_ocr"] is False
 
 
 def test_path_traversal_and_bad_ids(client):

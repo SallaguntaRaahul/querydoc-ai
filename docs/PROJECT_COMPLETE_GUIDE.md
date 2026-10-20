@@ -90,7 +90,7 @@ scores; see live timings; tune chunking, retrieval and generation settings; dele
 
 ## 9. Scope and limitations
 In scope: text PDFs, English, single machine, single shared workspace. Out of scope / limitations:
-OCR is optional and untested; no authentication or per-user isolation; tables become plain text;
+OCR is optional (Tesseract) and tested only on synthetic image-only pages; no authentication or per-user isolation; tables become plain text;
 answer quality is bounded by a 1.5B model; retrieval throughput does not scale with users;
 evaluation set is small. Production readiness: **not production-ready** (see Part G §security and Part I).
 
@@ -100,7 +100,7 @@ evaluation set is small. Production readiness: **not production-ready** (see Par
 | Multi-PDF upload with progress and diagnostics | Implemented |
 | Password/corrupt/oversize/too-long rejection | Implemented, tested |
 | Rotated-watermark filtering, soft-wrap reflow | Implemented, tested |
-| Scanned-page detection; optional OCR | Detection tested; OCR implemented, untested |
+| Scanned-page detection; optional OCR | Detection tested; OCR tested on synthetic image-only PDFs (unit + API), toggle in Settings |
 | Fixed / recursive / sentence chunking | Implemented, benchmarked |
 | Embedding cache (content hash, safe `.npz`) | Implemented, tested |
 | FAISS flat + HNSW, ID-selector filtering, delete, atomic checksummed persistence | Implemented, tested |
@@ -471,7 +471,7 @@ throughput ~12 req/s with reranking, generation serialised.
 6. **Larger, independently labelled evaluation set** with a second annotator; per-document breakdowns.
 7. **FastAPI service layer + authentication + per-user indexes / document-level ACLs.**
 8. **Quantised inference** (llama.cpp/MLX 4-bit) for larger models on the same laptop.
-9. **OCR path tested end to end** (implemented hook, untested).
+9. ~~OCR path tested end to end~~ — done: Settings toggle, unit + API tests on image-only PDFs (real-world scan quality still unmeasured).
 10. **Containerisation**, monitoring/observability (OpenTelemetry spans per stage), and incremental re-indexing on chunking changes.
 11. **Stronger embedding model** (bge-small/e5) — the manifest already forces a rebuild when the model changes.
 12. **Table- and structure-aware extraction** (headings, tables) for structure-aware chunking.

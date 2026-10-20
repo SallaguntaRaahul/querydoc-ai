@@ -29,8 +29,8 @@ swapping.
 | Claim area | Result | Target | Verdict | Evidence |
 |---|---|---|---|---|
 | Context relevance (nDCG@5, held-out test) | 0.578 → 0.831, **+43.8%** (95% CI +16.6 … +90.6%) | ≥ +40% | PASS (test split); **+36.7% on all 63 questions** | `results/relevance/results.json` |
-| Retrieval latency, 100+ page docs, warm, GPU reranker | p50 ≤ 80 ms, **p95 ≤ 129 ms** | p95 < 300 ms | PASS | `results/retrieval_latency/results.json` |
-| Retrieval latency, CPU-only reranker | p50 245–274 ms, **p95 541–556 ms** on real docs | p95 < 300 ms | FAIL (CPU-only) | `results/retrieval_latency_cpu/results.json` |
+| Retrieval latency, 100+ page docs, warm, GPU reranker | p50 ≤ 73 ms, **p95 ≤ 103 ms** | p95 < 300 ms | PASS | `results/retrieval_latency/results.json` |
+| Retrieval latency, CPU-only reranker (4 threads) | p50 151–235 ms, **p95 175–244 ms** (was 541–556 ms before 256-token truncation) | p95 < 300 ms | PASS | `results/retrieval_latency_cpu/results.json` |
 | Embedding peak RSS, batched streaming vs unbatched | 4,502 → 970 MB, **−78.5%** | ≥ 35% | PASS | `results/embeddings/results.json` |
 | …vs a batch-256 encode | 2,056 → 970 MB, −52.8% | — | info | same |
 | …vs SentenceTransformers' default batch 32 | no difference (+0.8%) | — | info | same |
@@ -65,15 +65,32 @@ Warm retrieval, 200 queries × 3 trials per cell; LLM generation excluded.
 
 | Dataset | pages | chunks | dense p50 | optimized p50 (GPU) | optimized p95 (GPU) | optimized p95 (CPU) |
 |---|---|---|---|---|---|---|
-| synthetic | 100 | 216 | 6.0 ms | 49 ms | 65 ms | 167 ms |
-| synthetic | 200 | 431 | 6.5 ms | 50 ms | 55 ms | 159 ms |
-| NIST SP 800-37r2 | 183 | 803 | 6.2 ms | 80 ms | **129 ms** | **556 ms** |
-| NIST corpus (4 PDFs) | 391 | 1532 | 5.9 ms | 75 ms | **127 ms** | **541 ms** |
+| synthetic | 100 | 216 | 5.7 ms | 51 ms | 58 ms | 175 ms |
+| synthetic | 200 | 431 | 6.1 ms | 52 ms | 103 ms | 187 ms |
+| NIST SP 800-37r2 | 183 | 803 | 6.3 ms | 72 ms | **77 ms** | **243 ms** |
+| NIST corpus (4 PDFs) | 391 | 1532 | 6.3 ms | 73 ms | **101 ms** | **244 ms** |
+
+Cross-encoder passages are truncated to 256 tokens (`reranker_max_length`). The CPU profile sweep
+(`benchmarks/benchmark_cpu_profile.py`, `results/cpu_profile/`) chose this by a rule fixed before running
+(max dev nDCG@5 subject to CPU p95 < 300 ms, 8 threads, full NIST corpus):
+
+| rerank_k | max_length | dev nDCG@5 | test nDCG@5 | CPU p50 | CPU p95 |
+|---|---|---|---|---|---|
+| 20 | 512 | 0.811 | 0.831 | 235 ms | 496 ms |
+| **20** | **256** | **0.812** | **0.831** | **222 ms** | **229 ms** |
+| 20 | 192 | 0.812 | 0.831 | 166 ms | 180 ms |
+| 20 | 128 | 0.710 | 0.793 | 115 ms | 120 ms |
+| 15 | 256 | 0.812 | 0.797 | 164 ms | 178 ms |
+| 12 | 256 | 0.794 | 0.804 | 131 ms | 141 ms |
+| 10 | 256 | 0.787 | 0.791 | 106 ms | 174 ms |
+
+Truncating to 256 tokens loses no quality on either split; 128 tokens does. 192 ties 256 on quality
+and is faster; the rule picked 256 (first on ties), the more conservative choice for longer passages.
 
 ![Retrieval latency](images/retrieval_latency.png)
 
 Stage breakdown, NIST corpus, GPU reranker (mean): query embedding 5 ms · FAISS 0.2 ms · BM25+RRF 1.8 ms ·
-dedup 7 ms · **rerank 71 ms**. On CPU the rerank stage alone is ~298 ms. The cold first query (lazy
+dedup ~1 ms · **rerank 60 ms**. On CPU (4 threads) the rerank stage is ~213 ms. The cold first query (lazy
 initialisation) took 188–216 ms and is reported separately.
 
 **End-to-end answers are not sub-300 ms.** With Qwen2.5-1.5B on MPS a full answer took p50 1.9 s / p95

@@ -152,8 +152,21 @@ export default function SettingsPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Chunking</CardTitle><CardDescription>Applies to new uploads. Re-index a document from the library to apply changes to it.</CardDescription></CardHeader>
+            <CardHeader><CardTitle className="text-base">Ingestion</CardTitle><CardDescription>Applies to new uploads. Re-index a document from the library to apply changes to it.</CardDescription></CardHeader>
             <CardContent className="grid gap-5 sm:grid-cols-2">
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3 sm:col-span-2">
+                <div>
+                  <Label htmlFor="enable_ocr">OCR for scanned pages (Tesseract)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {options.ocr_available
+                      ? 'Pages without a text layer are read with OCR. Slower ingestion (~1–2 s per scanned page).'
+                      : 'Tesseract was not found on this machine. Install it (e.g. brew install tesseract) to enable OCR.'}
+                  </p>
+                </div>
+                <Controller control={control} name="enable_ocr" render={({ field }) => (
+                  <Switch id="enable_ocr" checked={field.value} onCheckedChange={field.onChange} disabled={!options.ocr_available} />
+                )} />
+              </div>
               <Field id="chunk_size" label="Chunk size (characters)" error={err.chunk_size?.message} hint="Benchmarked best: 1000">
                 <Input id="chunk_size" type="number" inputMode="numeric" aria-invalid={!!err.chunk_size} {...num('chunk_size')} />
               </Field>

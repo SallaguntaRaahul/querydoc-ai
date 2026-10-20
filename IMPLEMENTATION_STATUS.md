@@ -43,7 +43,7 @@ Latest full run (`./scripts/test_all.sh`): backend 119 passed (incl. real-LLM e2
 
 - Docker Compose — intentionally not provided (macOS containers cannot use the Apple GPU).
 - Authentication, multi-tenancy, TLS — local single-user mode only.
-- OCR path untested; Linux/CUDA and non-Chromium browsers untested; CI workflow written but not run (no remote yet).
+- OCR tested on synthetic image-only PDFs only (unit + API tests; requires Tesseract); CUDA, Windows and non-Chromium browsers untested. CI runs on GitHub Actions (Ubuntu) for backend and frontend.
 - Generation timeouts at 10–20 concurrent generation users under memory pressure — observed, not root-caused.
 - License: MIT (chosen by the author).
 

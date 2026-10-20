@@ -116,12 +116,14 @@ class BM25Index:
 
 
 class Reranker:
-    def __init__(self, model_name: str, device: str = "cpu") -> None:
+    def __init__(self, model_name: str, device: str = "cpu", max_length: int | None = None) -> None:
         from sentence_transformers import CrossEncoder
 
         self.model_name = model_name
         self.device = resolve_device(device)
         self.model = load_local_first(lambda **kw: CrossEncoder(model_name, device=self.device, **kw), model_name)
+        if max_length is not None:
+            self.model.max_length = max_length
         self._lock = threading.Lock()
 
     def score(self, query: str, texts: Sequence[str]) -> np.ndarray:

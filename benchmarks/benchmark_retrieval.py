@@ -22,6 +22,7 @@ from dataclasses import asdict
 
 from common import EVAL_SET, environment, latency_summary, load_corpus, write_results
 from querydoc.chunking.chunkers import ChunkingConfig, chunk_document
+from querydoc.config import Settings
 from querydoc.embeddings.embedder import Embedder
 from querydoc.evaluation.relevance import load_eval_set
 from querydoc.evaluation.synthetic import make_synthetic_pdf
@@ -76,7 +77,7 @@ def main() -> None:
     datasets["nist_corpus_391p"] = (list(corpus.values()), real_qs)
 
     embedder = Embedder(EMBED_MODEL, device="cpu")
-    reranker = Reranker(RERANK_MODEL, device=args.reranker_device)
+    reranker = Reranker(RERANK_MODEL, device=args.reranker_device, max_length=Settings().reranker_max_length)
     rows, summary = [], {}
     for ds_name, (pdfs, questions) in datasets.items():
         docs = [extract_pdf(b, f"{ds_name}_{i}.pdf", max_upload_mb=100) for i, b in enumerate(pdfs)]

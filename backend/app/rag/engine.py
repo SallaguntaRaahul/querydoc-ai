@@ -12,6 +12,7 @@ import threading
 from typing import Any
 
 from querydoc.config import Settings
+from querydoc.ingestion.pdf_loader import ocr_available
 from querydoc.services.rag_service import QueryDocService
 
 log = logging.getLogger("querydoc.api.engine")
@@ -27,7 +28,7 @@ EMBEDDING_OPTIONS = ["sentence-transformers/all-MiniLM-L6-v2", "BAAI/bge-small-e
 # Fields of SettingsModel that map 1:1 onto engine Settings.
 ENGINE_FIELDS = (
     "embedding_model", "llm_model", "llm_device", "reranker_device", "chunk_size", "chunk_overlap",
-    "top_k", "fetch_k", "use_hybrid", "use_rerank", "rerank_k", "max_new_tokens", "temperature",
+    "top_k", "fetch_k", "use_hybrid", "use_rerank", "rerank_k", "max_new_tokens", "temperature", "enable_ocr",
 )
 UI_DEFAULTS = {"theme": "dark", "performance_mode": "balanced"}
 PERFORMANCE_PRESETS: dict[str, dict[str, Any]] = {
@@ -72,6 +73,8 @@ class EngineManager:
                 for key in ("llm_device", "reranker_device"):
                     if key in engine_updates and engine_updates[key] not in devices:
                         raise ValueError(f"{key} '{engine_updates[key]}' is not available on this machine")
+            if engine_updates.get("enable_ocr") and not ocr_available():
+                raise ValueError("OCR needs Tesseract, which was not found on this machine (brew install tesseract).")
             if "llm_model" in engine_updates and engine_updates["llm_model"] not in {o["id"] for o in LLM_OPTIONS}:
                 raise ValueError(f"unsupported LLM: {engine_updates['llm_model']}")
             if "embedding_model" in engine_updates:

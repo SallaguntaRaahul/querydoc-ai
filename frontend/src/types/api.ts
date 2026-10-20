@@ -128,6 +128,7 @@ export interface AppSettings {
   temperature: number
   theme: 'dark' | 'light' | 'system'
   performance_mode: 'quality' | 'balanced' | 'speed'
+  enable_ocr: boolean
 }
 
 export interface SettingsResponse {
@@ -138,6 +139,7 @@ export interface SettingsResponse {
     devices: Device[]
     embedding_model_locked: boolean
     embedding_model_locked_reason: string | null
+    ocr_available: boolean
   }
   restart_required: string[]
 }

@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="22" failures="0" errors="0" time="1.477897958">
-    <testsuite name="src/features/features.test.tsx" timestamp="2026-10-19T21:45:10.039Z" hostname="Raahuls-MacBook-Pro.local" tests="8" failures="0" errors="0" skipped="0" time="0.296845375">
-        <testcase classname="src/features/features.test.tsx" name="validateFiles &gt; accepts PDFs and rejects wrong type, empty and oversized files" time="0.002455875">
+<testsuites name="vitest tests" tests="22" failures="0" errors="0" time="1.160510583">
+    <testsuite name="src/features/features.test.tsx" timestamp="2026-10-20T03:14:26.204Z" hostname="Raahuls-MacBook-Pro.local" tests="8" failures="0" errors="0" skipped="0" time="0.207213958">
+        <testcase classname="src/features/features.test.tsx" name="validateFiles &gt; accepts PDFs and rejects wrong type, empty and oversized files" time="0.001895709">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="validateFiles &gt; caps the number of files per upload" time="0.001838334">
+        <testcase classname="src/features/features.test.tsx" name="validateFiles &gt; caps the number of files per upload" time="0.001591167">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; accepts the defaults" time="0.002871833">
+        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; accepts the defaults" time="0.002076666">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; rejects overlap above half the chunk size" time="0.000568208">
+        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; rejects overlap above half the chunk size" time="0.000501125">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; rejects inconsistent retrieval sizes and out-of-range values" time="0.002154">
+        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; rejects inconsistent retrieval sizes and out-of-range values" time="0.000593833">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; turns valid citation markers into links and drops unknown ones" time="0.000800916">
+        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; turns valid citation markers into links and drops unknown ones" time="0.00035175">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; renders the status, inline chip and source pill; clicking opens the cited page" time="0.230708541">
+        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; renders the status, inline chip and source pill; clicking opens the cited page" time="0.159056459">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; copies the answer with its sources" time="0.053052459">
-        </testcase>
-    </testsuite>
-    <testsuite name="src/lib/lib.test.ts" timestamp="2026-10-19T21:45:10.040Z" hostname="Raahuls-MacBook-Pro.local" tests="8" failures="0" errors="0" skipped="0" time="0.005248083">
-        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; parses complete events and keeps the partial tail" time="0.001345">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; ignores keep-alive comments and handles CRLF and multi-line data" time="0.000457459">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; defaults to the message event type" time="0.000258875">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="format helpers &gt; formats bytes, durations and percentages" time="0.000365167">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="format helpers &gt; renders relative times" time="0.000144083">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; escapes HTML so PDF text cannot inject markup into the text layer" time="0.000135292">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; normalizes typography differences" time="0.000433834">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; only highlights when the passage is really on the page" time="0.000251167">
+        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; copies the answer with its sources" time="0.038911041">
         </testcase>
     </testsuite>
-    <testsuite name="src/pages/pages.test.tsx" timestamp="2026-10-19T21:45:10.041Z" hostname="Raahuls-MacBook-Pro.local" tests="6" failures="0" errors="0" skipped="0" time="1.1758045">
-        <testcase classname="src/pages/pages.test.tsx" name="Dashboard &gt; shows real counts from the API and model readiness, with no a11y violations" time="0.403752291">
+    <testsuite name="src/lib/lib.test.ts" timestamp="2026-10-20T03:14:26.205Z" hostname="Raahuls-MacBook-Pro.local" tests="8" failures="0" errors="0" skipped="0" time="0.006064333">
+        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; parses complete events and keeps the partial tail" time="0.001489625">
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Dashboard &gt; reports an unreachable backend" time="0.039981625">
+        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; ignores keep-alive comments and handles CRLF and multi-line data" time="0.000458125">
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Library &gt; filters documents and deletes one through the API after confirmation" time="0.327061375">
+        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; defaults to the message event type" time="0.000255333">
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Library &gt; shows the empty state" time="0.035294958">
+        <testcase classname="src/lib/lib.test.ts" name="format helpers &gt; formats bytes, durations and percentages" time="0.000366666">
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Settings &gt; blocks invalid values client-side and saves a valid change via PUT" time="0.274684875">
+        <testcase classname="src/lib/lib.test.ts" name="format helpers &gt; renders relative times" time="0.000144">
+        </testcase>
+        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; escapes HTML so PDF text cannot inject markup into the text layer" time="0.000136666">
+        </testcase>
+        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; normalizes typography differences" time="0.000850958">
+        </testcase>
+        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; only highlights when the passage is really on the page" time="0.000296833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/pages/pages.test.tsx" timestamp="2026-10-20T03:14:26.206Z" hostname="Raahuls-MacBook-Pro.local" tests="6" failures="0" errors="0" skipped="0" time="0.947232292">
+        <testcase classname="src/pages/pages.test.tsx" name="Dashboard &gt; shows real counts from the API and model readiness, with no a11y violations" time="0.312187958">
+        </testcase>
+        <testcase classname="src/pages/pages.test.tsx" name="Dashboard &gt; reports an unreachable backend" time="0.033950417">
+        </testcase>
+        <testcase classname="src/pages/pages.test.tsx" name="Library &gt; filters documents and deletes one through the API after confirmation" time="0.2665675">
+        </testcase>
+        <testcase classname="src/pages/pages.test.tsx" name="Library &gt; shows the empty state" time="0.031204958">
+        </testcase>
+        <testcase classname="src/pages/pages.test.tsx" name="Settings &gt; blocks invalid values client-side and saves a valid change via PUT" time="0.233358917">
             <system-err>
 ToggleGroup is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
 ToggleGroup is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
@@ -55,10 +55,11 @@ Select is changing from uncontrolled to controlled. Components should not switch
 Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
 Switch is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
 Switch is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+Switch is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
 
             </system-err>
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Theme &gt; defaults to dark and switches to light, persisting the choice" time="0.092748792">
+        <testcase classname="src/pages/pages.test.tsx" name="Theme &gt; defaults to dark and switches to light, persisting the choice" time="0.067938542">
         </testcase>
     </testsuite>
 </testsuites>

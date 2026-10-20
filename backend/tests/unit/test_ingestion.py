@@ -1,9 +1,9 @@
 import pymupdf
 import pytest
 
-from querydoc.evaluation.synthetic import make_encrypted_pdf, make_synthetic_pdf
+from querydoc.evaluation.synthetic import make_encrypted_pdf, make_scanned_pdf, make_synthetic_pdf
 from querydoc.exceptions import PasswordProtectedPDFError, PDFValidationError
-from querydoc.ingestion.pdf_loader import doc_id_from_hash, extract_pdf, sanitize_filename
+from querydoc.ingestion.pdf_loader import doc_id_from_hash, extract_pdf, ocr_available, sanitize_filename
 from querydoc.ingestion.text_cleaning import clean_text
 
 
@@ -81,6 +81,25 @@ def test_blank_and_image_only_pages_are_flagged():
     assert doc.empty_pages == [2]
     assert doc.scanned_pages == [4]
     assert doc.pages[0].text and not doc.pages[0].is_empty
+
+
+SCAN_LINES = ["Section 4 Credential Rotation", "Service passwords must be rotated every 90 days.",
+              "The maximum session lifetime is 12 hours."]
+
+
+def test_scanned_pdf_has_no_text_layer_without_ocr():
+    doc = extract_pdf(make_scanned_pdf(SCAN_LINES, pages=2), "scan.pdf")
+    assert doc.scanned_pages == [1, 2]
+    assert all(not p.text for p in doc.pages)
+
+
+@pytest.mark.skipif(not ocr_available(), reason="Tesseract not installed")
+def test_ocr_recovers_text_from_scanned_pages():
+    doc = extract_pdf(make_scanned_pdf(SCAN_LINES, pages=2), "scan.pdf", enable_ocr=True)
+    assert doc.scanned_pages == []
+    for page in doc.pages:
+        text = page.text.lower()
+        assert "rotated every 90 days" in text and "12 hours" in text
 
 
 def test_large_document_preserves_page_numbers(synthetic_120):

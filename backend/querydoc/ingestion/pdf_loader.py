@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import shutil
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import pymupdf
@@ -201,10 +204,35 @@ def extract_pdf(
         doc.close()
 
 
+@lru_cache(maxsize=1)
+def tessdata_dir() -> str | None:
+    """Locate Tesseract language data: $TESSDATA_PREFIX, else next to the tesseract binary."""
+    env = os.environ.get("TESSDATA_PREFIX")
+    if env and Path(env).is_dir():
+        return env
+    exe = shutil.which("tesseract")
+    if not exe:
+        return None
+    root = Path(exe).resolve().parent.parent
+    for candidate in (root / "share" / "tessdata", root / "share" / "tesseract-ocr" / "5" / "tessdata",
+                      root / "share" / "tesseract-ocr" / "4.00" / "tessdata"):
+        if (candidate / "eng.traineddata").exists():
+            return str(candidate)
+    return None
+
+
+def ocr_available() -> bool:
+    return tessdata_dir() is not None
+
+
 def _ocr_page(page: pymupdf.Page) -> str:
-    """Optional OCR through PyMuPDF's Tesseract bridge. Returns '' when unavailable."""
+    """Optional OCR through PyMuPDF's Tesseract bridge (300 dpi, English). Returns '' when unavailable."""
+    tessdata = tessdata_dir()
+    if tessdata is None:
+        log.warning(kv("ocr_unavailable", reason="tesseract not found"))
+        return ""
     try:
-        textpage = page.get_textpage_ocr(full=True)
+        textpage = page.get_textpage_ocr(full=True, dpi=300, language="eng", tessdata=tessdata)
         return clean_text(page.get_text("text", textpage=textpage))
     except Exception as exc:  # Tesseract not installed or language data missing
         log.warning(kv("ocr_unavailable", error=exc))

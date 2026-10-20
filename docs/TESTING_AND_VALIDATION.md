@@ -69,5 +69,6 @@ Performance targets (relevance, latency GPU/CPU, memory, concurrency, generation
 
 - Relevance labels were AI-assisted (one annotator); 63 questions.
 - Generation quality is keyword-scored; small models can give grounded but off-target answers.
-- OCR, CUDA, Linux/Windows and Safari/Firefox were not exercised (Playwright runs Chromium only).
+- OCR is exercised on synthetic image-only PDFs (`test_ocr_recovers_text_from_scanned_pages`, `test_ocr_setting_controls_scanned_uploads`; skipped without Tesseract), not on real-world scans.
+- CUDA, Windows and Safari/Firefox were not exercised (Playwright runs Chromium only). Linux is covered only by the CI backend and frontend jobs.
 - All runs used one laptop under heavy memory pressure (7–13 GB swap in use).

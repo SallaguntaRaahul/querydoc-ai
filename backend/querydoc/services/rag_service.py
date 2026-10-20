@@ -122,7 +122,11 @@ class QueryDocService:
     def reranker(self) -> Reranker:
         with self._reranker_lock:
             if self._reranker is None:
-                self._reranker = Reranker(self.settings.reranker_model, device=self.settings.reranker_device)
+                self._reranker = Reranker(
+                    self.settings.reranker_model,
+                    device=self.settings.reranker_device,
+                    max_length=self.settings.reranker_max_length,
+                )
                 self.retriever.reranker = self._reranker
         return self._reranker
 

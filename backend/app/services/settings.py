@@ -18,6 +18,7 @@ from app.rag.engine import (
     available_devices,
 )
 from app.schemas.api import SettingsModel, SettingsOptions, SettingsResponse, SettingsUpdate
+from querydoc.ingestion.pdf_loader import ocr_available
 
 
 def _documents_exist(db: Session) -> bool:
@@ -33,6 +34,7 @@ def response(db: Session, manager: EngineManager, notes: list[str] | None = None
             llm_models=LLM_OPTIONS,
             devices=available_devices(),
             embedding_model_locked=locked,
+            ocr_available=ocr_available(),
             embedding_model_locked_reason=(
                 "Delete all documents to change the embedding model (existing vectors would be incompatible)."
                 if locked else None

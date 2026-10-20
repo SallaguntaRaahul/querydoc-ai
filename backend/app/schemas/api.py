@@ -191,6 +191,7 @@ class SettingsModel(BaseModel):
     temperature: float = Field(ge=0.0, le=1.5)
     theme: Literal["dark", "light", "system"]
     performance_mode: Literal["quality", "balanced", "speed"]
+    enable_ocr: bool = False
 
     @model_validator(mode="after")
     def _consistent(self) -> SettingsModel:
@@ -223,6 +224,7 @@ class SettingsUpdate(BaseModel):
     temperature: float | None = None
     theme: Literal["dark", "light", "system"] | None = None
     performance_mode: Literal["quality", "balanced", "speed"] | None = None
+    enable_ocr: bool | None = None
 
 
 class SettingsOptions(BaseModel):
@@ -231,6 +233,7 @@ class SettingsOptions(BaseModel):
     devices: list[str]
     embedding_model_locked: bool
     embedding_model_locked_reason: str | None
+    ocr_available: bool = False
 
 
 class SettingsResponse(BaseModel):

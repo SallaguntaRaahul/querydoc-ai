@@ -101,8 +101,10 @@ original model setting. Checksums in `manifest.json` also catch truncated/tamper
 
 ### 9. "The PDF is password-protected" / "No extractable text … OCR is disabled"
 Remove the password and re-upload. For scanned PDFs install Tesseract
-(`brew install tesseract`) and set `QUERYDOC_ENABLE_OCR=true`; OCR goes through PyMuPDF's
-`get_textpage_ocr`. OCR is optional and not covered by the automated tests.
+(`brew install tesseract`), then turn on **Settings → Ingestion → OCR for scanned pages** (or set
+`QUERYDOC_ENABLE_OCR=true`) and re-index the document. OCR goes through PyMuPDF's `get_textpage_ocr`
+(300 dpi, English); the tessdata folder is found from `TESSDATA_PREFIX` or next to the `tesseract`
+binary. The toggle is disabled, and the API returns 409, when Tesseract is not installed.
 
 ---
 

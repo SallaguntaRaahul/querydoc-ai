@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     rerank_k: int | None = 20  # candidates passed to the cross-encoder
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     reranker_device: DeviceName = "auto"  # MPS/CUDA when available: ~3x faster than CPU on an M3 Pro
+    # Passage truncation for the cross-encoder. 256 matches 512 on dev/test nDCG@5 and halves
+    # CPU p95 (496 -> 229 ms, results/cpu_profile).
+    reranker_max_length: int = 256
     # Below this best dense cosine score the system declines to answer.
     min_relevance_score: float = 0.25
 

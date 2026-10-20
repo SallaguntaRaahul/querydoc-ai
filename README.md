@@ -84,9 +84,9 @@ Configuration: environment variables prefixed `QUERYDOC_` (see [.env.example](.e
 | What | Result | Target | Verdict |
 |---|---|---|---|
 | Retrieval quality, nDCG@5 (held-out questions) | 0.578 → 0.831, **+43.8%** (95% CI +17…+91%); +36.7% on all 63 | +40% | PASS on held-out split |
-| Warm retrieval, 100+ page PDFs, reranker on GPU | p50 ≤ 80 ms, **p95 ≤ 129 ms** | < 300 ms | PASS |
+| Warm retrieval, 100+ page PDFs, reranker on GPU | p50 ≤ 73 ms, **p95 ≤ 103 ms** | < 300 ms | PASS |
 | Same, measured through the HTTP API (SSE) | evidence p50 **100 ms**, p95 **269 ms** | < 300 ms | PASS |
-| Same, reranker on CPU only | p95 541–556 ms on real documents | < 300 ms | **FAIL** |
+| Same, reranker on CPU only (4 threads) | **p95 175–244 ms** | < 300 ms | PASS (on this Mac; slower CPUs may not) |
 | Full generated answer (Qwen2.5-1.5B, via API) | first token p50 1.08 s; total p50 2.0 s, p95 4.7 s | — | not sub-300 ms |
 | Embedding peak memory, bounded batches vs unbatched | 4,502 → 970 MB, **−78.5%** (no gain vs library default) | −35% | PASS |
 | Concurrent retrieval, 1–20 users | 380 requests, **0 errors**, ~12 req/s (does not scale) | tested | PASS |
@@ -138,12 +138,12 @@ querydoc-ai/
 ## Known limitations
 
 - **Local single-user mode only:** no authentication, authorisation or TLS. Do not expose the server beyond localhost; this is not a secured multi-tenant deployment.
-- Sub-300 ms applies to **retrieval with the reranker on the GPU**; CPU-only retrieval and full generated answers are slower.
+- Sub-300 ms applies to **retrieval** (GPU or this Mac's CPU); full generated answers take seconds. A slower CPU, such as a 4-vCPU CI runner, may exceed 300 ms.
 - Retrieval throughput is capped (~12 req/s) by one cross-encoder; generation is serialised; timeouts were observed at 10–20 concurrent generation users under memory pressure.
 - Citation verification is lexical: it checks grounding, not whether an answer fully addresses the question; a small local model can be grounded yet off-target.
 - Prompt-injection redaction is heuristic.
 - The relevance benchmark is small (63 questions, 4 documents) and AI-assisted.
-- OCR, CUDA, Linux/Windows and non-Chromium browsers were not tested.
+- OCR is tested only on synthetic image-only pages; CUDA, Windows and non-Chromium browsers were not tested.
 
 ## License
 

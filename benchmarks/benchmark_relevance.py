@@ -19,6 +19,7 @@ from dataclasses import asdict
 
 from common import EVAL_SET, environment, load_corpus, write_results
 from querydoc.chunking.chunkers import ChunkingConfig, chunk_document, joined_text
+from querydoc.config import Settings
 from querydoc.embeddings.embedder import Embedder
 from querydoc.evaluation.relevance import (
     PRIMARY_METRIC,
@@ -95,7 +96,7 @@ def main() -> None:
         raise SystemExit(f"evidence spans not found: {gt.missing}")
 
     embedder = Embedder(EMBED_MODEL, device="cpu", batch_size=32)
-    reranker = Reranker(RERANK_MODEL, device=args.reranker_device)
+    reranker = Reranker(RERANK_MODEL, device=args.reranker_device, max_length=Settings().reranker_max_length)
     chunkings = [BASELINE_CHUNKING, ("recursive", 500, 100)] if args.quick else CHUNKINGS
 
     rows: list[dict] = []

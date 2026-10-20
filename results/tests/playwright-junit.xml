@@ -1,134 +1,134 @@
-<testsuites id="" name="" tests="22" failures="0" skipped="0" errors="0" time="120.826436">
-<testsuite name="app.spec.ts" timestamp="2026-10-19T21:45:21.937Z" hostname="chromium" tests="10" failures="0" skipped="0" time="37.489" errors="0">
-<testcase name="empty workspace shows onboarding states" classname="app.spec.ts" time="1.369">
+<testsuites id="" name="" tests="22" failures="0" skipped="0" errors="0" time="128.932692">
+<testsuite name="app.spec.ts" timestamp="2026-10-20T03:14:38.650Z" hostname="chromium" tests="10" failures="0" skipped="0" time="43.027" errors="0">
+<testcase name="empty workspace shows onboarding states" classname="app.spec.ts" time="1.392">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="upload: validation error, then two real PDFs index (including 183 pages)" classname="app.spec.ts" time="16.818">
+<testcase name="upload: validation error, then two real PDFs index (including 183 pages)" classname="app.spec.ts" time="18.271">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="ask a question: streamed answer with citations, open the cited page" classname="app.spec.ts" time="7.962">
+<testcase name="ask a question: streamed answer with citations, open the cited page" classname="app.spec.ts" time="11.026">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="follow-up question, persistence after reload, reopen from history" classname="app.spec.ts" time="3.496">
+<testcase name="follow-up question, persistence after reload, reopen from history" classname="app.spec.ts" time="3.99">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="stop a generation mid-stream" classname="app.spec.ts" time="2.42">
+<testcase name="stop a generation mid-stream" classname="app.spec.ts" time="2.993">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="document-scoped question from the viewer, side by side" classname="app.spec.ts" time="1.752">
+<testcase name="document-scoped question from the viewer, side by side" classname="app.spec.ts" time="1.819">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="settings: invalid input is blocked, valid change persists" classname="app.spec.ts" time="1.131">
+<testcase name="settings: invalid input is blocked, valid change persists" classname="app.spec.ts" time="1.122">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="analytics shows live telemetry and benchmark evidence" classname="app.spec.ts" time="0.719">
+<testcase name="analytics shows live telemetry and benchmark evidence" classname="app.spec.ts" time="0.726">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="theme switches between dark and light" classname="app.spec.ts" time="0.618">
+<testcase name="theme switches between dark and light" classname="app.spec.ts" time="0.617">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="delete a document removes it and its index entries" classname="app.spec.ts" time="1.204">
+<testcase name="delete a document removes it and its index entries" classname="app.spec.ts" time="1.071">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
 </testsuite>
-<testsuite name="visual.spec.ts" timestamp="2026-10-19T21:45:21.937Z" hostname="chromium" tests="12" failures="0" skipped="0" time="68.942" errors="0">
-<testcase name="seed a larger collection including a very long filename" classname="visual.spec.ts" time="5.185">
+<testsuite name="visual.spec.ts" timestamp="2026-10-20T03:14:38.650Z" hostname="chromium" tests="12" failures="0" skipped="0" time="72.691" errors="0">
+<testcase name="seed a larger collection including a very long filename" classname="visual.spec.ts" time="8.46">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="pages render cleanly — desktop dark" classname="visual.spec.ts" time="9.542">
+<testcase name="pages render cleanly — desktop dark" classname="visual.spec.ts" time="9.42">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="pages render cleanly — tablet dark" classname="visual.spec.ts" time="6.998">
+<testcase name="pages render cleanly — tablet dark" classname="visual.spec.ts" time="7.014">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="pages render cleanly — mobile dark" classname="visual.spec.ts" time="6.833">
+<testcase name="pages render cleanly — mobile dark" classname="visual.spec.ts" time="6.809">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="pages render cleanly — desktop light" classname="visual.spec.ts" time="9.079">
+<testcase name="pages render cleanly — desktop light" classname="visual.spec.ts" time="9.683">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="pages render cleanly — tablet light" classname="visual.spec.ts" time="7.002">
+<testcase name="pages render cleanly — tablet light" classname="visual.spec.ts" time="7.004">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="pages render cleanly — mobile light" classname="visual.spec.ts" time="6.876">
+<testcase name="pages render cleanly — mobile light" classname="visual.spec.ts" time="6.823">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="viewer side by side with a search highlight (desktop dark)" classname="visual.spec.ts" time="3.29">
+<testcase name="viewer side by side with a search highlight (desktop dark)" classname="visual.spec.ts" time="3.253">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="long titles truncate instead of overflowing" classname="visual.spec.ts" time="1.669">
+<testcase name="long titles truncate instead of overflowing" classname="visual.spec.ts" time="1.686">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="empty, loading and error states" classname="visual.spec.ts" time="8.349">
+<testcase name="empty, loading and error states" classname="visual.spec.ts" time="8.327">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="long answer with many citations stays readable (layout fixture)" classname="visual.spec.ts" time="2.9">
+<testcase name="long answer with many citations stays readable (layout fixture)" classname="visual.spec.ts" time="2.937">
 <properties>
 <property name="serial" value="">
 </property>
 </properties>
 </testcase>
-<testcase name="keyboard focus is visible and reduced motion is respected" classname="visual.spec.ts" time="1.219">
+<testcase name="keyboard focus is visible and reduced motion is respected" classname="visual.spec.ts" time="1.275">
 <properties>
 <property name="serial" value="">
 </property>

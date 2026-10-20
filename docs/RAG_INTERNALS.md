@@ -41,7 +41,7 @@ Fine-tuning teaches *style or skills*; RAG supplies *facts*. QueryDoc needs fact
 2. **Identity** — SHA-256 of the bytes; `doc_id` = first 16 hex chars. Same bytes ⇒ same id ⇒ duplicate detection is a registry lookup.
 3. **Per-page extraction** — `page.get_text("dict", sort=True)` and keep only horizontal lines (`_horizontal_text`). Rotated margin text is dropped because it would otherwise be spliced into sentences.
 4. **Cleaning** — `text_cleaning.clean_text`: Unicode NFKC, smart quotes/dashes/bullets → ASCII, remove soft hyphens and zero-width characters, re-join `word-\nbreak` hyphenation, collapse spaces, keep paragraph breaks.
-5. **Diagnostics** — a page with < 20 characters of text *and* at least one image is flagged as likely scanned; with OCR disabled it is reported, not silently indexed as empty.
+5. **Diagnostics** — a page with < 20 characters of text *and* at least one image is flagged as likely scanned; with OCR disabled it is reported, not silently indexed as empty. With OCR enabled (Settings → Ingestion, requires Tesseract) such pages are rendered at 300 dpi and read with Tesseract through PyMuPDF; covered by `test_ocr_recovers_text_from_scanned_pages` and `test_ocr_setting_controls_scanned_uploads` on image-only PDFs with no text layer.
 
 Only cleaned text per page is retained; the raw PDF bytes are written once to `data/workspace/documents/<doc_id>.pdf` (for the page viewer) and not kept in memory.
 

@@ -45,12 +45,12 @@ export const sampleSettings = {
   settings: {
     embedding_model: 'sentence-transformers/all-MiniLM-L6-v2', llm_model: 'Qwen/Qwen2.5-1.5B-Instruct', llm_device: 'auto',
     reranker_device: 'auto', chunk_size: 1000, chunk_overlap: 200, top_k: 5, fetch_k: 30, use_hybrid: true, use_rerank: true,
-    rerank_k: 20, max_new_tokens: 256, temperature: 0, theme: 'dark', performance_mode: 'balanced',
+    rerank_k: 20, max_new_tokens: 256, temperature: 0, theme: 'dark', performance_mode: 'balanced', enable_ocr: false,
   },
   options: {
     embedding_models: ['sentence-transformers/all-MiniLM-L6-v2'],
     llm_models: [{ id: 'Qwen/Qwen2.5-1.5B-Instruct', label: 'Qwen2.5 1.5B Instruct', params: '1.5B', approx_memory_gb: 3.1, license: 'Apache-2.0', note: 'Default' }],
-    devices: ['auto', 'cpu', 'mps'], embedding_model_locked: true, embedding_model_locked_reason: 'Delete all documents first.',
+    devices: ['auto', 'cpu', 'mps'], embedding_model_locked: true, embedding_model_locked_reason: 'Delete all documents first.', ocr_available: true,
   },
   restart_required: [],
 }

@@ -20,6 +20,7 @@ export const settingsSchema = z
     temperature: z.number().min(0).max(1.5),
     theme: z.enum(['dark', 'light', 'system']),
     performance_mode: z.enum(['quality', 'balanced', 'speed']),
+    enable_ocr: z.boolean(),
   })
   .superRefine((v, ctx) => {
     if (v.chunk_overlap > Math.floor(v.chunk_size / 2))

@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-10-19T21:47:52+00:00",
+  "generated_utc": "2026-10-20T03:16:51+00:00",
   "criteria": [
     {
       "group": "Definition of done",
@@ -78,7 +78,7 @@
       "requirement": "11. Automated tests \u2014 backend pytest",
       "target": "0 failures, 0 errors",
       "status": "PASS",
-      "measured": "119 tests, 0 failed, 0 errors, 0 skipped",
+      "measured": "122 tests, 0 failed, 0 errors, 0 skipped",
       "evidence": "results/tests/junit.xml"
     },
     {
@@ -142,15 +142,15 @@
       "requirement": "Retrieval latency, 100+ pages (GPU reranker)",
       "target": "p95 < 300 ms",
       "status": "PASS",
-      "measured": "worst p95 128 ms, p50 80 ms (nist_800-37r2_183p)",
+      "measured": "worst p95 103 ms, p50 52 ms (synthetic_200p)",
       "evidence": "results/retrieval_latency/results.json"
     },
     {
       "group": "Performance targets",
       "requirement": "Retrieval latency, 100+ pages (CPU-only reranker)",
       "target": "p95 < 300 ms",
-      "status": "FAIL",
-      "measured": "worst p95 556 ms, p50 274 ms (nist_800-37r2_183p)",
+      "status": "PASS",
+      "measured": "worst p95 244 ms, p50 231 ms (nist_corpus_391p)",
       "evidence": "results/retrieval_latency_cpu/results.json"
     },
     {

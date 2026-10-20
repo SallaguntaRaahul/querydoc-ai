@@ -95,3 +95,21 @@ def make_encrypted_pdf(password: str = "secret") -> bytes:
     data = doc.tobytes(encryption=pymupdf.PDF_ENCRYPT_AES_256, user_pw=password, owner_pw=password + "!")
     doc.close()
     return data
+
+
+def make_scanned_pdf(lines: list[str], *, pages: int = 1, dpi: int = 150) -> bytes:
+    """A PDF whose pages are *images* of text (no text layer), like a scan."""
+    src = pymupdf.open()
+    for p in range(pages):
+        page = src.new_page(width=595, height=842)
+        body = "\n".join(lines if p == 0 else [f"{line} (page {p + 1})" for line in lines])
+        page.insert_textbox(pymupdf.Rect(60, 60, 535, 780), body, fontsize=13, fontname="helv")
+    out = pymupdf.open()
+    for page in src:
+        pix = page.get_pixmap(dpi=dpi)
+        dst = out.new_page(width=page.rect.width, height=page.rect.height)
+        dst.insert_image(dst.rect, pixmap=pix)
+    data = out.tobytes(garbage=3, deflate=True)
+    src.close()
+    out.close()
+    return data
