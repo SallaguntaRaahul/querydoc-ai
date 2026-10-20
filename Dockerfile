@@ -1,6 +1,6 @@
 # QueryDoc AI — single-container image (React build served by FastAPI).
-# Built for Hugging Face Spaces (Docker SDK, free CPU: 2 vCPU / 16 GB RAM) but runs anywhere:
-#   docker build -t querydoc-ai . && docker run -p 7860:7860 querydoc-ai
+# Runs on any CPU host (x86-64 or ARM64), e.g. an Oracle Cloud Always Free VM (deploy/oracle/):
+#   docker build -t querydoc-ai . && docker run -p 7860:7860 -v querydoc-data:/home/user/data querydoc-ai
 # Author: Raahul Sallagunta
 
 # ---- 1. frontend build ------------------------------------------------------
@@ -16,7 +16,7 @@ FROM python:3.12-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
  && rm -rf /var/lib/apt/lists/*
-# Hugging Face Spaces run containers as uid 1000.
+# Non-root user (uid 1000, also what Hugging Face Spaces expect).
 RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user \
@@ -46,7 +46,7 @@ COPY --chown=user LICENSE THIRD_PARTY_NOTICES.md ./
 # Public multi-user configuration. Engine settings use QUERYDOC_* as well.
 ENV QUERYDOC_AUTH_ENABLED=true \
     QUERYDOC_COOKIE_SECURE=true \
-    QUERYDOC_COOKIE_SAMESITE=none \
+    QUERYDOC_COOKIE_SAMESITE=lax \
     QUERYDOC_DATA_DIR=/home/user/data \
     QUERYDOC_FRONTEND_DIST=/home/user/app/frontend/dist \
     QUERYDOC_RESULTS_DIR=/home/user/app/results \

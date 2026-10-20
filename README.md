@@ -71,20 +71,16 @@ Production-style local run (one process serves the built UI and the API on :8000
 
 Configuration: environment variables prefixed `QUERYDOC_` (see [.env.example](.env.example)). Data lives in `data/workspace/` (SQLite database, FAISS index, stored PDFs). For local use run it natively: containers on macOS cannot use the Apple GPU.
 
-### Deploy for other users (free Hugging Face Space)
+### Deploy for other users (free, Oracle Cloud)
 
-The [Dockerfile](Dockerfile) builds one container (React build served by FastAPI, models baked in, accounts on).
-It is set up for a free Hugging Face Docker Space (2 vCPU, 16 GB RAM, no GPU):
+The [Dockerfile](Dockerfile) builds one container (React build served by FastAPI, models baked in,
+accounts on). [deploy/oracle/](deploy/oracle/README.md) runs it on an Oracle Cloud **Always Free** ARM VM
+(4 cores, 24 GB RAM) behind Caddy with automatic HTTPS, with a step-by-step guide. On CPU, search stays
+fast but a generated answer takes roughly 20–60 s.
 
-```bash
-hf auth login                        # token with write access
-python scripts/deploy_hf_space.py --space <user>/querydoc-ai --backup-repo <user>/querydoc-ai-data \
-    --admin-email you@example.com
-```
-
-Free Spaces have no persistent disk, so `--backup-repo` mirrors accounts, documents and the index to a
-**private** Hugging Face dataset and restores them on start-up ([backup.py](backend/app/services/backup.py)).
-On free CPU hardware, search stays fast but a generated answer takes roughly 30–90 s.
+A Hugging Face Space deploy script is also included ([scripts/deploy_hf_space.py](scripts/deploy_hf_space.py),
+with workspace backup to a private dataset because Spaces have no persistent disk). Hugging Face now requires
+a PRO subscription for Docker Spaces.
 
 > If the project sits in an iCloud-synced folder (Desktop/Documents) on a nearly full disk, macOS may evict files; keep it in a `*.nosync` folder — see [TROUBLESHOOTING](docs/TROUBLESHOOTING.md).
 

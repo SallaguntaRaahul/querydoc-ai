@@ -1,0 +1,17 @@
+# HTTPS via Let's Encrypt for $DOMAIN (e.g. 203-0-113-7.sslip.io when there is no own domain).
+{$DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	reverse_proxy app:7860 {
+		flush_interval -1 # stream answers (SSE) without buffering
+	}
+}

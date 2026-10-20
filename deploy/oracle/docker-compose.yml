@@ -1,0 +1,38 @@
+# QueryDoc AI on a single VM: the app container behind Caddy (automatic HTTPS).
+# Used by deploy/oracle/setup.sh; run from the repository root:
+#   docker compose -f deploy/oracle/docker-compose.yml --env-file deploy/oracle/.env up -d --build
+services:
+  app:
+    build: { context: ../.., dockerfile: Dockerfile }
+    restart: unless-stopped
+    environment:
+      QUERYDOC_COOKIE_SAMESITE: lax          # served from its own origin, not an iframe
+      QUERYDOC_TORCH_THREADS: ${TORCH_THREADS:-4}
+      QUERYDOC_ADMIN_EMAILS: ${ADMIN_EMAILS:-[]}
+      QUERYDOC_SIGNUP_ENABLED: ${SIGNUP_ENABLED:-true}
+    volumes:
+      - querydoc-data:/home/user/data       # accounts, PDFs, index: survive restarts and rebuilds
+    expose: ["7860"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/api/v1/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in deploy/oracle/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data                   # TLS certificates
+      - caddy-config:/config
+
+volumes:
+  querydoc-data:
+  caddy-data:
+  caddy-config:

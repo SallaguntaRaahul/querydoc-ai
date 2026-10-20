@@ -1,4 +1,7 @@
-"""Deploy QueryDoc AI to a Hugging Face Space (Docker SDK, free CPU hardware).
+"""Deploy QueryDoc AI to a Hugging Face Space (Docker SDK).
+
+Note: Hugging Face now requires a PRO subscription for Docker Spaces, even on
+cpu-basic hardware (observed October 2026). For a free deployment use deploy/oracle/.
 
 Prerequisites: a Hugging Face account and a login on this machine
 (`hf auth login` with a token that has write access).
@@ -49,6 +52,7 @@ def main() -> None:
     if args.backup_repo:
         api.add_space_secret(args.space, "HF_TOKEN", token)
         api.add_space_variable(args.space, "QUERYDOC_HF_BACKUP_REPO", args.backup_repo)
+    api.add_space_variable(args.space, "QUERYDOC_COOKIE_SAMESITE", "none")  # the Space page embeds the app in an iframe
     if args.admin_email:
         api.add_space_variable(args.space, "QUERYDOC_ADMIN_EMAILS", json.dumps(args.admin_email))
 
