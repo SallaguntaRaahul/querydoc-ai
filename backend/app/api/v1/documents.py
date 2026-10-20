@@ -7,10 +7,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import AppContext, get_ctx
+from app.api.deps import AppContext, get_ctx, get_user
 from app.core.errors import APIError
 from app.db.session import get_db
-from app.models.entities import Document
+from app.models.entities import Document, User
 from app.schemas.api import (
     DocumentList,
     DocumentOut,
@@ -45,6 +45,7 @@ async def upload(
     files: list[UploadFile] = File(...),
     ctx: AppContext = Depends(get_ctx),
     db: Session = Depends(get_db),
+    user: User = Depends(get_user),
 ) -> UploadResult:
     if not files:
         raise APIError(422, "no_files", "No files were uploaded.")
@@ -57,7 +58,10 @@ async def upload(
         name = f.filename or "upload.pdf"
         try:
             data = await _read_limited(f, limit)
-            doc = svc.accept_upload(db, ctx.worker, data, name, max_upload_mb=ctx.settings.max_upload_mb)
+            if ctx.settings.auth_enabled:
+                svc.check_quota(db, user, len(data), max_documents=ctx.settings.max_documents_per_user,
+                                max_storage_mb=ctx.settings.max_storage_mb_per_user)
+            doc = svc.accept_upload(db, ctx.worker, data, name, user, max_upload_mb=ctx.settings.max_upload_mb)
             accepted.append(DocumentOut.model_validate(doc))
         except APIError as exc:
             if len(files) == 1:
@@ -73,8 +77,9 @@ def list_documents(
     q: str | None = Query(default=None, max_length=200, description="Filter by filename/title"),
     status_: str | None = Query(default=None, alias="status", pattern="^(queued|processing|ready|failed)$"),
     db: Session = Depends(get_db),
+    user: User = Depends(get_user),
 ) -> DocumentList:
-    stmt = select(Document).order_by(Document.created_at.desc())
+    stmt = select(Document).where(Document.owner_id == user.id).order_by(Document.created_at.desc())
     if status_:
         stmt = stmt.where(Document.status == status_)
     items = list(db.scalars(stmt))
@@ -85,19 +90,20 @@ def list_documents(
 
 
 @router.get("/{document_id}", response_model=DocumentOut, responses={404: {"model": ErrorResponse}})
-def get_document(document_id: str, db: Session = Depends(get_db)) -> DocumentOut:
-    return DocumentOut.model_validate(svc.get_document_or_404(db, document_id))
+def get_document(document_id: str, db: Session = Depends(get_db), user: User = Depends(get_user)) -> DocumentOut:
+    return DocumentOut.model_validate(svc.get_document_or_404(db, document_id, user))
 
 
 @router.get("/{document_id}/status", response_model=DocumentStatus)
-def document_status(document_id: str, db: Session = Depends(get_db)) -> DocumentStatus:
-    d = svc.get_document_or_404(db, document_id)
+def document_status(document_id: str, db: Session = Depends(get_db), user: User = Depends(get_user)) -> DocumentStatus:
+    d = svc.get_document_or_404(db, document_id, user)
     return DocumentStatus(id=d.id, status=d.status, stage=d.stage, progress=d.progress, error=d.error)
 
 
 @router.get("/{document_id}/file", response_class=FileResponse, summary="Download the stored PDF")
-def document_file(document_id: str, ctx: AppContext = Depends(get_ctx), db: Session = Depends(get_db)) -> FileResponse:
-    d = svc.get_document_or_404(db, document_id)
+def document_file(document_id: str, ctx: AppContext = Depends(get_ctx), db: Session = Depends(get_db),
+                  user: User = Depends(get_user)) -> FileResponse:
+    d = svc.get_document_or_404(db, document_id, user)
     path = ctx.manager.service.document_path(d.id)  # path built from a validated hex id only
     if not path.exists():
         path = ctx.worker.upload_path(d.id)
@@ -108,12 +114,14 @@ def document_file(document_id: str, ctx: AppContext = Depends(get_ctx), db: Sess
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT, responses={409: {"model": ErrorResponse}})
-def delete_document(document_id: str, ctx: AppContext = Depends(get_ctx), db: Session = Depends(get_db)) -> None:
-    d = svc.get_document_or_404(db, document_id)
+def delete_document(document_id: str, ctx: AppContext = Depends(get_ctx), db: Session = Depends(get_db),
+                    user: User = Depends(get_user)) -> None:
+    d = svc.get_document_or_404(db, document_id, user)
     svc.delete_document(db, ctx.manager, ctx.worker, d)
 
 
 @router.post("/{document_id}/reindex", response_model=DocumentOut, status_code=status.HTTP_202_ACCEPTED)
-def reindex(document_id: str, ctx: AppContext = Depends(get_ctx), db: Session = Depends(get_db)) -> DocumentOut:
-    d = svc.get_document_or_404(db, document_id)
+def reindex(document_id: str, ctx: AppContext = Depends(get_ctx), db: Session = Depends(get_db),
+            user: User = Depends(get_user)) -> DocumentOut:
+    d = svc.get_document_or_404(db, document_id, user)
     return DocumentOut.model_validate(svc.reindex_document(db, ctx.worker, ctx.manager, d))

@@ -140,8 +140,21 @@ export interface SettingsResponse {
     embedding_model_locked: boolean
     embedding_model_locked_reason: string | null
     ocr_available: boolean
+    can_edit: boolean
   }
   restart_required: string[]
+}
+
+export interface AuthConfig {
+  auth_enabled: boolean
+  signup_enabled: boolean
+}
+
+export interface CurrentUser {
+  id: string
+  email: string
+  is_admin: boolean
+  auth_enabled: boolean
 }
 
 export interface ModelState {

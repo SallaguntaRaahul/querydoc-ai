@@ -7,11 +7,11 @@ import contextlib
 import logging
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import APIError
-from app.models.entities import Document
+from app.models.entities import LOCAL_USER_ID, Document, User
 from app.rag.engine import EngineManager
 from app.workers.ingestion import IngestionWorker
 from querydoc.exceptions import DocumentNotFoundError, PDFValidationError
@@ -25,17 +25,37 @@ from querydoc.ingestion.pdf_loader import (
 log = logging.getLogger("querydoc.api.documents")
 
 
-def get_document_or_404(db: Session, doc_id: str) -> Document:
+def get_document_or_404(db: Session, doc_id: str, user: User) -> Document:
+    """Other users' documents are reported as missing, never as forbidden."""
     if len(doc_id) != 16 or any(c not in "0123456789abcdef" for c in doc_id):
         raise APIError(404, "document_not_found", "Document not found.")
     doc = db.get(Document, doc_id)
-    if doc is None:
+    if doc is None or doc.owner_id != user.id:
         raise APIError(404, "document_not_found", "Document not found.")
     return doc
 
 
+def owned_doc_id(owner_id: str, sha: str) -> str:
+    """Engine id for an owner's copy of a file. The local user keeps the plain content-hash
+    id (compatible with indexes built before accounts existed)."""
+    if owner_id == LOCAL_USER_ID:
+        return doc_id_from_hash(sha)
+    return doc_id_from_hash(content_hash(f"{owner_id}:{sha}".encode()))
+
+
+def check_quota(db: Session, user: User, new_bytes: int, *, max_documents: int, max_storage_mb: float) -> None:
+    count, used = db.execute(
+        select(func.count(), func.coalesce(func.sum(Document.size_bytes), 0)).where(Document.owner_id == user.id)
+    ).one()
+    if count >= max_documents:
+        raise APIError(403, "quota_exceeded", f"Your library is full ({max_documents} documents). Delete one to upload more.")
+    if used + new_bytes > max_storage_mb * 1024 * 1024:
+        raise APIError(403, "quota_exceeded",
+                       f"This upload would exceed your {max_storage_mb:.0f} MB storage limit. Delete a document first.")
+
+
 def accept_upload(
-    db: Session, worker: IngestionWorker, data: bytes, filename: str, *, max_upload_mb: float
+    db: Session, worker: IngestionWorker, data: bytes, filename: str, user: User, *, max_upload_mb: float
 ) -> Document:
     """Validate bytes synchronously (cheap checks), persist to the upload area and
     queue background indexing. Raises APIError for invalid or duplicate files."""
@@ -48,8 +68,8 @@ def accept_upload(
         status = 413 if "limit" in str(exc) else 422
         raise APIError(status, "invalid_pdf", str(exc)) from exc
     sha = content_hash(data)
-    doc_id = doc_id_from_hash(sha)
-    existing = db.scalar(select(Document).where(Document.sha256 == sha))
+    doc_id = owned_doc_id(user.id, sha)
+    existing = db.scalar(select(Document).where(Document.owner_id == user.id, Document.sha256 == sha))
     if existing is not None:
         if existing.status == "failed":
             db.delete(existing)
@@ -59,8 +79,8 @@ def accept_upload(
                            {"document_id": existing.id})
     worker.upload_path(doc_id).write_bytes(data)
     doc = Document(
-        id=doc_id, filename=safe_name, title=Path(safe_name).stem, sha256=sha, size_bytes=len(data),
-        status="queued", stage="queued", progress=0.0,
+        id=doc_id, owner_id=user.id, filename=safe_name, title=Path(safe_name).stem, sha256=sha,
+        size_bytes=len(data), status="queued", stage="queued", progress=0.0,
     )
     db.add(doc)
     db.commit()  # the worker thread must see the row before it starts
@@ -97,8 +117,8 @@ def reconcile(db: Session, manager: EngineManager, worker: IngestionWorker) -> d
     stats = {"imported": 0, "requeued": 0, "marked_failed": 0}
     for doc_id, rec in engine_docs.items():
         if doc_id not in db_docs:
-            db.add(Document(
-                id=doc_id, filename=rec.filename, title=rec.title, sha256=rec.sha256, size_bytes=rec.size_bytes,
+            db.add(Document(  # indexed before accounts existed (or DB lost): belongs to the local user
+                id=doc_id, owner_id=LOCAL_USER_ID, filename=rec.filename, title=rec.title, sha256=rec.sha256, size_bytes=rec.size_bytes,
                 page_count=rec.page_count, chunk_count=rec.chunk_count, status="ready", stage="ready",
                 progress=1.0, chunking=rec.chunking, timings_ms=rec.timings_ms, scanned_pages=rec.scanned_pages,
             ))

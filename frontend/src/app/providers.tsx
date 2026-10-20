@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MotionConfig } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 
@@ -8,7 +8,16 @@ import { ThemeProvider } from '@/hooks/use-theme'
 import { ApiError } from '@/lib/api'
 
 export function makeQueryClient() {
-  return new QueryClient({
+  const client: QueryClient = new QueryClient({
+    // A 401 from any query means the session ended: re-check who is signed in, which
+    // sends the user back to the sign-in page.
+    queryCache: new QueryCache({
+      onError: (error, query) => {
+        if (error instanceof ApiError && error.status === 401 && query.queryKey[0] !== 'auth') {
+          void client.invalidateQueries({ queryKey: ['auth', 'me'] })
+        }
+      },
+    }),
     defaultOptions: {
       queries: {
         staleTime: 5_000,
@@ -18,6 +27,7 @@ export function makeQueryClient() {
       },
     },
   })
+  return client
 }
 
 export function Providers({ children, client }: { children: ReactNode; client?: QueryClient }) {

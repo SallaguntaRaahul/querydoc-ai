@@ -50,7 +50,7 @@ export const sampleSettings = {
   options: {
     embedding_models: ['sentence-transformers/all-MiniLM-L6-v2'],
     llm_models: [{ id: 'Qwen/Qwen2.5-1.5B-Instruct', label: 'Qwen2.5 1.5B Instruct', params: '1.5B', approx_memory_gb: 3.1, license: 'Apache-2.0', note: 'Default' }],
-    devices: ['auto', 'cpu', 'mps'], embedding_model_locked: true, embedding_model_locked_reason: 'Delete all documents first.', ocr_available: true,
+    devices: ['auto', 'cpu', 'mps'], embedding_model_locked: true, embedding_model_locked_reason: 'Delete all documents first.', ocr_available: true, can_edit: true,
   },
   restart_required: [],
 }

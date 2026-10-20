@@ -102,7 +102,7 @@ class IngestionWorker:
                 offset, weight = _STAGE_WEIGHTS.get(stage, (0.95, 0.0))
                 self._update(doc_id, stage=stage, progress=round(min(offset + frac * weight, 0.99), 3))
 
-            report = svc.ingest(data, filename, chunking=svc.chunking_config(), progress=progress)
+            report = svc.ingest(data, filename, chunking=svc.chunking_config(), progress=progress, doc_id=doc_id)
             rec = report.record
             self._update(
                 doc_id,

@@ -1,10 +1,12 @@
 // TanStack Query hooks: one place for server-state keys, polling and invalidation.
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { api, uploadWithProgress } from '@/lib/api'
+import { api, ApiError, uploadWithProgress } from '@/lib/api'
 import type {
   AnalyticsOverview,
   AppSettings,
+  AuthConfig,
+  CurrentUser,
   BenchmarkData,
   ConversationDetail,
   ConversationSummary,
@@ -16,6 +18,8 @@ import type {
 } from '@/types/api'
 
 export const keys = {
+  authConfig: ['auth', 'config'] as const,
+  me: ['auth', 'me'] as const,
   documents: ['documents'] as const,
   document: (id: string) => ['documents', id] as const,
   conversations: ['conversations'] as const,
@@ -137,4 +141,59 @@ export function useAnalyticsOverview() {
 
 export function useBenchmarks() {
   return useQuery({ queryKey: keys.benchmarks, queryFn: () => api.get<BenchmarkData>('/analytics/benchmarks'), staleTime: 60_000 })
+}
+
+// ------------------------------------------------------------------ accounts
+export function useAuthConfig() {
+  return useQuery({ queryKey: keys.authConfig, queryFn: () => api.get<AuthConfig>('/auth/config'), staleTime: Infinity })
+}
+
+/** The signed-in user; null when signed out (401). */
+export function useMe(enabled = true) {
+  return useQuery({
+    queryKey: keys.me,
+    enabled,
+    staleTime: 60_000,
+    queryFn: async () => {
+      try {
+        return await api.get<CurrentUser>('/auth/me')
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 401) return null
+        throw e
+      }
+    },
+  })
+}
+
+export function useAuthAction(action: 'login' | 'signup') {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { email: string; password: string }) => api.post<CurrentUser>(`/auth/${action}`, body),
+    onSuccess: (user) => {
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'auth' })  // never show a previous user's data
+      qc.setQueryData(keys.me, user)
+    },
+  })
+}
+
+export function useLogout() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<void>('/auth/logout'),
+    onSettled: () => {
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'auth' })
+      qc.setQueryData(keys.me, null)
+    },
+  })
+}
+
+export function useDeleteAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (password: string) => api.delete('/auth/me', { password }),
+    onSuccess: () => {
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'auth' })
+      qc.setQueryData(keys.me, null)
+    },
+  })
 }

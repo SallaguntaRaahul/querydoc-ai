@@ -25,7 +25,7 @@ def _documents_exist(db: Session) -> bool:
     return bool(db.scalar(select(func.count()).select_from(Document)))
 
 
-def response(db: Session, manager: EngineManager, notes: list[str] | None = None) -> SettingsResponse:
+def response(db: Session, manager: EngineManager, notes: list[str] | None = None, *, can_edit: bool = True) -> SettingsResponse:
     locked = _documents_exist(db) or manager.service.store.size > 0
     return SettingsResponse(
         settings=SettingsModel(**manager.current()),
@@ -35,6 +35,7 @@ def response(db: Session, manager: EngineManager, notes: list[str] | None = None
             devices=available_devices(),
             embedding_model_locked=locked,
             ocr_available=ocr_available(),
+            can_edit=can_edit,
             embedding_model_locked_reason=(
                 "Delete all documents to change the embedding model (existing vectors would be incompatible)."
                 if locked else None

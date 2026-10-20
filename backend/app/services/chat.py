@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import APIError
-from app.models.entities import Conversation, Document, Message, QueryLog
+from app.models.entities import Conversation, Document, Message, QueryLog, User
 from app.rag.engine import EngineManager
 from app.schemas.api import ChatRequest, MessageOut
 from querydoc.generation.llm import GenerationParams
@@ -23,6 +23,7 @@ SOURCE_TEXT_CHARS = 1500
 @dataclass
 class PreparedChat:
     conversation_id: str
+    owner_id: str
     user_message_id: str
     question: str
     scope: list[str]
@@ -59,14 +60,22 @@ def message_out(m: Message) -> MessageOut:
     return MessageOut.model_validate(m)
 
 
-def _resolve_scope(db: Session, requested: list[str] | None, conversation: Conversation | None) -> list[str]:
+def get_conversation_or_404(db: Session, conversation_id: str, user: User) -> Conversation:
+    conv = db.get(Conversation, conversation_id) if len(conversation_id) <= 32 else None
+    if conv is None or conv.owner_id != user.id:
+        raise APIError(404, "conversation_not_found", "Conversation not found.")
+    return conv
+
+
+def _resolve_scope(db: Session, user: User, requested: list[str] | None, conversation: Conversation | None) -> list[str]:
     ids = requested if requested else (conversation.document_ids if conversation and requested is None else [])
-    ready = {d.id for d in db.scalars(select(Document).where(Document.status == "ready"))}
+    owned = {d.id: d for d in db.scalars(select(Document).where(Document.owner_id == user.id))}
+    ready = {i for i, d in owned.items() if d.status == "ready"}
     if not ready:
         raise APIError(400, "no_documents", "No indexed documents yet. Upload a PDF and wait for it to finish processing.")
     if not ids:
         return sorted(ready)
-    missing = [d for d in ids if db.get(Document, d) is None]
+    missing = [d for d in ids if d not in owned]
     if missing:
         raise APIError(404, "document_not_found", "Some selected documents do not exist.", {"document_ids": missing})
     not_ready = [d for d in ids if d not in ready]
@@ -75,13 +84,11 @@ def _resolve_scope(db: Session, requested: list[str] | None, conversation: Conve
     return list(ids)
 
 
-def prepare(db: Session, manager: EngineManager, req: ChatRequest) -> PreparedChat:
+def prepare(db: Session, manager: EngineManager, req: ChatRequest, user: User) -> PreparedChat:
     conversation = None
     prior_user: Message | None = None
     if req.conversation_id:
-        conversation = db.get(Conversation, req.conversation_id)
-        if conversation is None:
-            raise APIError(404, "conversation_not_found", "Conversation not found.")
+        conversation = get_conversation_or_404(db, req.conversation_id, user)
     question = req.message
     if req.regenerate_of:
         if conversation is None:
@@ -98,9 +105,9 @@ def prepare(db: Session, manager: EngineManager, req: ChatRequest) -> PreparedCh
         db.delete(target)
         db.flush()
         db.refresh(conversation)
-    scope = _resolve_scope(db, req.document_ids, conversation)
+    scope = _resolve_scope(db, user, req.document_ids, conversation)
     if conversation is None:
-        conversation = Conversation(title=question[:80], document_ids=req.document_ids or [])
+        conversation = Conversation(owner_id=user.id, title=question[:80], document_ids=req.document_ids or [])
         db.add(conversation)
         db.flush()
     elif req.document_ids is not None:
@@ -136,7 +143,7 @@ def prepare(db: Session, manager: EngineManager, req: ChatRequest) -> PreparedCh
         temperature=s.temperature if req.temperature is None else req.temperature,
         top_p=s.top_p,
     )
-    return PreparedChat(conversation.id, user_msg.id, question, scope, history[-2:], cfg, params)
+    return PreparedChat(conversation.id, user.id, user_msg.id, question, scope, history[-2:], cfg, params)
 
 
 def finalize(db: Session, manager: EngineManager, prep: PreparedChat, resp: RAGResponse, *, streamed: bool) -> Message:
@@ -153,7 +160,7 @@ def finalize(db: Session, manager: EngineManager, prep: PreparedChat, resp: RAGR
         conv.updated_at = msg.created_at
     g = resp.generation
     db.add(QueryLog(
-        mode=resp.mode, status=resp.status, streamed=int(streamed), documents_in_scope=len(prep.scope),
+        owner_id=prep.owner_id, mode=resp.mode, status=resp.status, streamed=int(streamed), documents_in_scope=len(prep.scope),
         retrieval_ms=resp.timings_ms.get("retrieval"), generation_ms=resp.timings_ms.get("generation"),
         ttft_ms=resp.timings_ms.get("time_to_first_token"), total_ms=resp.timings_ms.get("total"),
         completion_tokens=g.completion_tokens if g else None, llm_model=manager.service.settings.llm_model if g else None,
@@ -172,9 +179,14 @@ def finalize_error(db: Session, prep: PreparedChat, code: str, message: str) -> 
     return msg
 
 
-def list_conversations(db: Session, limit: int = 100) -> list[dict[str, Any]]:
-    counts = dict(db.execute(select(Message.conversation_id, func.count()).group_by(Message.conversation_id)).all())
-    convs = db.scalars(select(Conversation).order_by(Conversation.updated_at.desc()).limit(limit)).all()
+def list_conversations(db: Session, user: User, limit: int = 100) -> list[dict[str, Any]]:
+    counts = dict(db.execute(
+        select(Message.conversation_id, func.count()).join(Conversation)
+        .where(Conversation.owner_id == user.id).group_by(Message.conversation_id)
+    ).all())
+    convs = db.scalars(
+        select(Conversation).where(Conversation.owner_id == user.id).order_by(Conversation.updated_at.desc()).limit(limit)
+    ).all()
     out = []
     for c in convs:
         last = c.messages[-1].content[:160] if c.messages else None

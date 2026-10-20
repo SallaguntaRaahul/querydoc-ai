@@ -16,6 +16,7 @@ import { Logo, ThemeToggle } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { AccountMenu } from '@/features/auth/account-menu'
 import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useConversations, useHealth } from '@/services/queries'
@@ -125,8 +126,14 @@ function SidebarBody({ collapsed, onNavigate }: { collapsed: boolean; onNavigate
       {collapsed && <div className="flex-1" />}
       <div className={cn('border-t border-sidebar-border p-3', collapsed && 'flex flex-col items-center gap-1 p-2')}>
         <ModelStatus collapsed={collapsed} />
+        <AccountMenu collapsed={collapsed} />
         <ThemeToggle compact={collapsed} />
-        {!collapsed && <p className="px-2 pt-1 text-[11px] text-muted-foreground">Built by Raahul Sallagunta</p>}
+        {!collapsed && (
+          <p className="px-2 pt-1 text-[11px] text-muted-foreground">
+            Built by Raahul Sallagunta ·{' '}
+            <a href="https://github.com/SallaguntaRaahul/querydoc-ai" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">Source</a>
+          </p>
+        )}
       </div>
     </div>
   )

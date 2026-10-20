@@ -123,7 +123,9 @@ class Reranker:
         self.device = resolve_device(device)
         self.model = load_local_first(lambda **kw: CrossEncoder(model_name, device=self.device, **kw), model_name)
         if max_length is not None:
-            self.model.max_length = max_length
+            # renamed from ``max_length`` in newer sentence-transformers
+            attr = "max_seq_length" if hasattr(type(self.model), "max_seq_length") else "max_length"
+            setattr(self.model, attr, max_length)
         self._lock = threading.Lock()
 
     def score(self, query: str, texts: Sequence[str]) -> np.ndarray:

@@ -15,7 +15,7 @@ import psutil
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.entities import Conversation, Document, QueryLog
+from app.models.entities import Conversation, Document, QueryLog, User
 from app.rag.engine import EngineManager
 
 
@@ -33,10 +33,14 @@ def _summary(values: list[float]) -> dict[str, Any]:
             "mean": round(sum(values) / len(values), 2) if values else None}
 
 
-def overview(db: Session, manager: EngineManager) -> dict[str, Any]:
-    docs = list(db.scalars(select(Document)))
+def overview(db: Session, manager: EngineManager, user: User) -> dict[str, Any]:
+    """Documents, conversations and query telemetry are the user's own; index and
+    process figures describe the whole server."""
+    docs = list(db.scalars(select(Document).where(Document.owner_id == user.id)))
     ready = [d for d in docs if d.status == "ready"]
-    logs = list(db.scalars(select(QueryLog).order_by(QueryLog.created_at.desc()).limit(500)))
+    logs = list(db.scalars(
+        select(QueryLog).where(QueryLog.owner_id == user.id).order_by(QueryLog.created_at.desc()).limit(500)
+    ))
     gen_logs = [q for q in logs if q.mode == "generated"]
     svc = manager.service
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -58,7 +62,9 @@ def overview(db: Session, manager: EngineManager) -> dict[str, Any]:
             "pages": sum(d.page_count for d in ready), "chunks": sum(d.chunk_count for d in ready),
             "bytes": sum(d.size_bytes for d in ready),
         },
-        "conversations": db.scalar(select(func.count()).select_from(Conversation)) or 0,
+        "conversations": db.scalar(
+            select(func.count()).select_from(Conversation).where(Conversation.owner_id == user.id)
+        ) or 0,
         "index": {
             "vectors": svc.store.size, "approx_bytes": svc.store.memory_bytes(), "type": svc.store.index_type,
             "embedding_model": svc.embedder.model_name, "dim": svc.embedder.dim,

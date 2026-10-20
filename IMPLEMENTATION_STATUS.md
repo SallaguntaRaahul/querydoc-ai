@@ -1,6 +1,6 @@
 # QueryDoc AI — Implementation Status
 
-Author: Raahul Sallagunta · Last updated: 2026-10-19
+Author: Raahul Sallagunta · Last updated: 2026-10-20
 
 Final evidence-linked verdicts: `results/acceptance/ACCEPTANCE.md` and
 `docs/RESUME_CLAIM_VALIDATION.md`.
@@ -37,12 +37,24 @@ Final evidence-linked verdicts: `results/acceptance/ACCEPTANCE.md` and
 | Documentation updated for the full stack | Done | `docs/` |
 | Acceptance script for the new definition of done | Done | `scripts/acceptance.py` |
 
-Latest full run (`./scripts/test_all.sh`): backend 119 passed (incl. real-LLM e2e), Vitest 22 passed, frontend build OK, Playwright 22 passed.
+## Phase 3 — Multi-user deployment (complete, deployment pending a Hugging Face login)
+
+| Area | Status | Evidence |
+|---|---|---|
+| Accounts: scrypt passwords, server-side cookie sessions, sign-up/in/out, account deletion | Done | `tests/api/test_auth.py` |
+| Per-user isolation of documents, conversations, telemetry (other users' ids → 404) | Done | `test_users_cannot_see_each_others_data` |
+| Admin-only server settings, quotas, rate limits, CSRF Origin check | Done | `tests/api/test_auth.py` |
+| Migration `c3a1f0e2b7d4` (existing data → built-in local user) | Done | tested on a copy of the local DB |
+| Login/sign-up pages, route guard, account menu, read-only settings | Done | `src/features/auth/auth.test.tsx`, browser check |
+| Dockerfile (CPU torch, models baked in, Tesseract) + Hugging Face Space card + deploy script | Done | `Dockerfile`, `scripts/deploy_hf_space.py` |
+| Workspace backup/restore to a private HF dataset (free Spaces have no persistent disk) | Done | `tests/api/test_backup.py` |
+
+Latest full run (`./scripts/test_all.sh`): backend 131 passed (incl. real-LLM e2e), Vitest 27 passed, frontend build OK, Playwright 22 passed.
 
 ## Not done / out of scope
 
-- Docker Compose — intentionally not provided (macOS containers cannot use the Apple GPU).
-- Authentication, multi-tenancy, TLS — local single-user mode only.
+- The Docker image was not built locally (no Docker daemon on the development Mac); it is built by Hugging Face.
+- Accounts have no email verification, password reset or 2FA; TLS is provided by the host (Hugging Face).
 - OCR tested on synthetic image-only PDFs only (unit + API tests; requires Tesseract); CUDA, Windows and non-Chromium browsers untested. CI runs on GitHub Actions (Ubuntu) for backend and frontend.
 - Generation timeouts at 10–20 concurrent generation users under memory pressure — observed, not root-caused.
 - License: MIT (chosen by the author).

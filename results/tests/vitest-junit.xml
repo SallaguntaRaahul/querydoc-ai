@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="22" failures="0" errors="0" time="1.160510583">
-    <testsuite name="src/features/features.test.tsx" timestamp="2026-10-20T03:14:26.204Z" hostname="Raahuls-MacBook-Pro.local" tests="8" failures="0" errors="0" skipped="0" time="0.207213958">
-        <testcase classname="src/features/features.test.tsx" name="validateFiles &gt; accepts PDFs and rejects wrong type, empty and oversized files" time="0.001895709">
+<testsuites name="vitest tests" tests="27" failures="0" errors="0" time="1.805536749">
+    <testsuite name="src/features/features.test.tsx" timestamp="2026-10-20T03:57:25.039Z" hostname="Raahuls-MacBook-Pro.local" tests="8" failures="0" errors="0" skipped="0" time="0.223468666">
+        <testcase classname="src/features/features.test.tsx" name="validateFiles &gt; accepts PDFs and rejects wrong type, empty and oversized files" time="0.001868708">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="validateFiles &gt; caps the number of files per upload" time="0.001591167">
+        <testcase classname="src/features/features.test.tsx" name="validateFiles &gt; caps the number of files per upload" time="0.001676958">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; accepts the defaults" time="0.002076666">
+        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; accepts the defaults" time="0.002395584">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; rejects overlap above half the chunk size" time="0.000501125">
+        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; rejects overlap above half the chunk size" time="0.000545125">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; rejects inconsistent retrieval sizes and out-of-range values" time="0.000593833">
+        <testcase classname="src/features/features.test.tsx" name="settingsSchema &gt; rejects inconsistent retrieval sizes and out-of-range values" time="0.000444875">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; turns valid citation markers into links and drops unknown ones" time="0.00035175">
+        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; turns valid citation markers into links and drops unknown ones" time="0.000255375">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; renders the status, inline chip and source pill; clicking opens the cited page" time="0.159056459">
+        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; renders the status, inline chip and source pill; clicking opens the cited page" time="0.175524917">
         </testcase>
-        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; copies the answer with its sources" time="0.038911041">
-        </testcase>
-    </testsuite>
-    <testsuite name="src/lib/lib.test.ts" timestamp="2026-10-20T03:14:26.205Z" hostname="Raahuls-MacBook-Pro.local" tests="8" failures="0" errors="0" skipped="0" time="0.006064333">
-        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; parses complete events and keeps the partial tail" time="0.001489625">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; ignores keep-alive comments and handles CRLF and multi-line data" time="0.000458125">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; defaults to the message event type" time="0.000255333">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="format helpers &gt; formats bytes, durations and percentages" time="0.000366666">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="format helpers &gt; renders relative times" time="0.000144">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; escapes HTML so PDF text cannot inject markup into the text layer" time="0.000136666">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; normalizes typography differences" time="0.000850958">
-        </testcase>
-        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; only highlights when the passage is really on the page" time="0.000296833">
+        <testcase classname="src/features/features.test.tsx" name="citations in answers &gt; copies the answer with its sources" time="0.038442542">
         </testcase>
     </testsuite>
-    <testsuite name="src/pages/pages.test.tsx" timestamp="2026-10-20T03:14:26.206Z" hostname="Raahuls-MacBook-Pro.local" tests="6" failures="0" errors="0" skipped="0" time="0.947232292">
-        <testcase classname="src/pages/pages.test.tsx" name="Dashboard &gt; shows real counts from the API and model readiness, with no a11y violations" time="0.312187958">
+    <testsuite name="src/lib/lib.test.ts" timestamp="2026-10-20T03:57:25.040Z" hostname="Raahuls-MacBook-Pro.local" tests="8" failures="0" errors="0" skipped="0" time="0.005805708">
+        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; parses complete events and keeps the partial tail" time="0.001401958">
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Dashboard &gt; reports an unreachable backend" time="0.033950417">
+        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; ignores keep-alive comments and handles CRLF and multi-line data" time="0.000563667">
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Library &gt; filters documents and deletes one through the API after confirmation" time="0.2665675">
+        <testcase classname="src/lib/lib.test.ts" name="parseSseChunk &gt; defaults to the message event type" time="0.000266083">
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Library &gt; shows the empty state" time="0.031204958">
+        <testcase classname="src/lib/lib.test.ts" name="format helpers &gt; formats bytes, durations and percentages" time="0.000373625">
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Settings &gt; blocks invalid values client-side and saves a valid change via PUT" time="0.233358917">
+        <testcase classname="src/lib/lib.test.ts" name="format helpers &gt; renders relative times" time="0.000143917">
+        </testcase>
+        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; escapes HTML so PDF text cannot inject markup into the text layer" time="0.000139583">
+        </testcase>
+        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; normalizes typography differences" time="0.000479958">
+        </testcase>
+        <testcase classname="src/lib/lib.test.ts" name="PDF text helpers &gt; only highlights when the passage is really on the page" time="0.000326792">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/pages/pages.test.tsx" timestamp="2026-10-20T03:57:25.041Z" hostname="Raahuls-MacBook-Pro.local" tests="6" failures="0" errors="0" skipped="0" time="0.948718916">
+        <testcase classname="src/pages/pages.test.tsx" name="Dashboard &gt; shows real counts from the API and model readiness, with no a11y violations" time="0.319664958">
+        </testcase>
+        <testcase classname="src/pages/pages.test.tsx" name="Dashboard &gt; reports an unreachable backend" time="0.0335365">
+        </testcase>
+        <testcase classname="src/pages/pages.test.tsx" name="Library &gt; filters documents and deletes one through the API after confirmation" time="0.268726042">
+        </testcase>
+        <testcase classname="src/pages/pages.test.tsx" name="Library &gt; shows the empty state" time="0.028142041">
+        </testcase>
+        <testcase classname="src/pages/pages.test.tsx" name="Settings &gt; blocks invalid values client-side and saves a valid change via PUT" time="0.227625292">
             <system-err>
 ToggleGroup is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
 ToggleGroup is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
@@ -59,7 +59,31 @@ Switch is changing from uncontrolled to controlled. Components should not switch
 
             </system-err>
         </testcase>
-        <testcase classname="src/pages/pages.test.tsx" name="Theme &gt; defaults to dark and switches to light, persisting the choice" time="0.067938542">
+        <testcase classname="src/pages/pages.test.tsx" name="Theme &gt; defaults to dark and switches to light, persisting the choice" time="0.068625167">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/features/auth/auth.test.tsx" timestamp="2026-10-20T03:57:25.042Z" hostname="Raahuls-MacBook-Pro.local" tests="5" failures="0" errors="0" skipped="0" time="0.627543459">
+        <testcase classname="src/features/auth/auth.test.tsx" name="Accounts &gt; sends signed-out visitors to sign-in, then back to where they were going" time="0.32590125">
+        </testcase>
+        <testcase classname="src/features/auth/auth.test.tsx" name="Accounts &gt; shows the server error for wrong credentials and has no a11y violations" time="0.163052125">
+        </testcase>
+        <testcase classname="src/features/auth/auth.test.tsx" name="Accounts &gt; local single-user mode skips sign-in entirely" time="0.008015791">
+        </testcase>
+        <testcase classname="src/features/auth/auth.test.tsx" name="Accounts &gt; ignores off-site redirect targets after sign-in" time="0.013854084">
+        </testcase>
+        <testcase classname="src/features/auth/auth.test.tsx" name="Accounts &gt; settings are read-only for non-admin accounts" time="0.114889375">
+            <system-err>
+ToggleGroup is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+ToggleGroup is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+Switch is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+Switch is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+Switch is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.
+
+            </system-err>
         </testcase>
     </testsuite>
 </testsuites>

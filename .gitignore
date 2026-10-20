@@ -26,3 +26,4 @@ frontend/playwright-report/
 frontend/.vite/
 *.tsbuildinfo
 results/logs/backend_dev.log
+data/auth-demo/

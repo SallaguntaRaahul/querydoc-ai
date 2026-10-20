@@ -15,6 +15,7 @@ QueryDoc AI is a local-first PDF intelligence system that uses retrieval-augment
 - **RAG analytics** — live telemetry from this installation (retrieval, generation and total p50/p95, processing times, index size, memory) shown separately from recorded benchmark evidence (relevance, latency on GPU/CPU, memory, concurrency, generation).
 - **Settings** — models, devices, chunking, top-k, hybrid search, reranking, tokens, temperature, theme and performance presets, validated on both client and server.
 - **RAG engine** — PyMuPDF extraction (rotated-watermark filtering, soft-wrap reflow, scanned-page detection), LangChain recursive chunking with page ranges, batched SentenceTransformer embeddings, FAISS with checksummed persistence, BM25 + dense fusion, cross-encoder reranking, Qwen2.5 on the Apple GPU / CUDA / CPU.
+- **Accounts (optional)** — email/password sign-up with private libraries and conversations per user, admin-only server settings, per-user quotas, rate limits, CSRF protection and self-service account deletion. Off by default for local single-user use.
 - **Safety and reliability** — upload limits and validation, path-traversal-safe storage, scoped retrieval, prompt-injection delimiting and redaction, bounded generation queue with timeouts, cancellation on disconnect, no pickle anywhere, structured JSON logs.
 
 ## Screenshots (captured from the running app by Playwright)
@@ -68,7 +69,22 @@ Production-style local run (one process serves the built UI and the API on :8000
 ./scripts/start_prod.sh
 ```
 
-Configuration: environment variables prefixed `QUERYDOC_` (see [.env.example](.env.example)). Data lives in `data/workspace/` (SQLite database, FAISS index, stored PDFs). Docker is not provided because containers on macOS cannot use the Apple GPU.
+Configuration: environment variables prefixed `QUERYDOC_` (see [.env.example](.env.example)). Data lives in `data/workspace/` (SQLite database, FAISS index, stored PDFs). For local use run it natively: containers on macOS cannot use the Apple GPU.
+
+### Deploy for other users (free Hugging Face Space)
+
+The [Dockerfile](Dockerfile) builds one container (React build served by FastAPI, models baked in, accounts on).
+It is set up for a free Hugging Face Docker Space (2 vCPU, 16 GB RAM, no GPU):
+
+```bash
+hf auth login                        # token with write access
+python scripts/deploy_hf_space.py --space <user>/querydoc-ai --backup-repo <user>/querydoc-ai-data \
+    --admin-email you@example.com
+```
+
+Free Spaces have no persistent disk, so `--backup-repo` mirrors accounts, documents and the index to a
+**private** Hugging Face dataset and restores them on start-up ([backup.py](backend/app/services/backup.py)).
+On free CPU hardware, search stays fast but a generated answer takes roughly 30–90 s.
 
 > If the project sits in an iCloud-synced folder (Desktop/Documents) on a nearly full disk, macOS may evict files; keep it in a `*.nosync` folder — see [TROUBLESHOOTING](docs/TROUBLESHOOTING.md).
 
@@ -137,7 +153,8 @@ querydoc-ai/
 
 ## Known limitations
 
-- **Local single-user mode only:** no authentication, authorisation or TLS. Do not expose the server beyond localhost; this is not a secured multi-tenant deployment.
+- **Accounts are basic:** email/password with server-side sessions, but no email verification, password reset or 2FA. Without `QUERYDOC_AUTH_ENABLED=true` there is no authentication at all, so never expose that mode beyond localhost.
+- On a free CPU host, generated answers take 30–90 s and are produced one at a time (others queue).
 - Sub-300 ms applies to **retrieval** (GPU or this Mac's CPU); full generated answers take seconds. A slower CPU, such as a 4-vCPU CI runner, may exceed 300 ms.
 - Retrieval throughput is capped (~12 req/s) by one cross-encoder; generation is serialised; timeouts were observed at 10–20 concurrent generation users under memory pressure.
 - Citation verification is lexical: it checks grounding, not whether an answer fully addresses the question; a small local model can be grounded yet off-target.

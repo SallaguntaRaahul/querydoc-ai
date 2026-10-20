@@ -1,13 +1,16 @@
 """ORM models. The FAISS index and chunk metadata stay in the RAG engine's
-workspace; the database holds application state: document lifecycle,
-conversations, messages, settings and runtime telemetry."""
+workspace; the database holds application state: users and sessions, document
+lifecycle, conversations, messages, settings and runtime telemetry.
+
+Every document, conversation and query log belongs to a user. In local
+single-user mode that is the built-in ``local`` user."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -21,13 +24,40 @@ def new_id() -> str:
     return uuid.uuid4().hex
 
 
+LOCAL_USER_ID = "local"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    email: Mapped[str] = mapped_column(String(254), unique=True)  # stored lower-cased
+    password_hash: Mapped[str] = mapped_column(String(255))  # "" = cannot sign in (local user)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AuthSession(Base):
+    """Server-side login session. Only a SHA-256 of the cookie token is stored."""
+
+    __tablename__ = "auth_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Document(Base):
     __tablename__ = "documents"
+    __table_args__ = (UniqueConstraint("owner_id", "sha256", name="uq_documents_owner_sha256"),)
 
-    id: Mapped[str] = mapped_column(String(16), primary_key=True)  # engine doc_id (sha256 prefix)
+    id: Mapped[str] = mapped_column(String(16), primary_key=True)  # engine doc_id
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     filename: Mapped[str] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(500), default="")
-    sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    sha256: Mapped[str] = mapped_column(String(64))
     size_bytes: Mapped[int] = mapped_column(Integer)
     page_count: Mapped[int] = mapped_column(Integer, default=0)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -47,6 +77,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200), default="New conversation")
     document_ids: Mapped[list] = mapped_column(JSON, default=list)  # scope at creation; [] = all documents
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -81,6 +112,7 @@ class QueryLog(Base):
     __tablename__ = "query_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     mode: Mapped[str] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(32))

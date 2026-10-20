@@ -29,10 +29,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import AppContext, get_ctx, run_blocking
+from app.api.deps import AppContext, get_ctx, get_user, run_blocking
 from app.core.errors import APIError, map_engine_error
 from app.db.session import get_db, session_scope
-from app.models.entities import Message
+from app.models.entities import Message, User
 from app.schemas.api import ChatRequest, ChatResponse, ErrorResponse, MessageOut
 from app.services import chat as chat_service
 from querydoc.exceptions import QueryDocError
@@ -44,13 +44,20 @@ log = logging.getLogger("querydoc.api.chat")
 KEEPALIVE_S = 10.0
 
 
+def _rate_limit(ctx: AppContext, user: User) -> None:
+    if ctx.settings.auth_enabled:
+        ctx.limiter.check(f"chat:{user.id}", ctx.settings.chat_per_minute, 60, "questions")
+
+
 def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 
 @router.post("", response_model=ChatResponse, responses={400: {"model": ErrorResponse}, 429: {"model": ErrorResponse}})
-async def chat(req: ChatRequest, ctx: AppContext = Depends(get_ctx), db: Session = Depends(get_db)) -> ChatResponse:
-    prep = await run_in_threadpool(chat_service.prepare, db, ctx.manager, req)
+async def chat(req: ChatRequest, ctx: AppContext = Depends(get_ctx), db: Session = Depends(get_db),
+               user: User = Depends(get_user)) -> ChatResponse:
+    _rate_limit(ctx, user)
+    prep = await run_in_threadpool(chat_service.prepare, db, ctx.manager, req, user)
     svc = ctx.manager.service
 
     def run() -> tuple[MessageOut, MessageOut]:
@@ -63,15 +70,15 @@ async def chat(req: ChatRequest, ctx: AppContext = Depends(get_ctx), db: Session
             raise APIError(status, code, str(exc)) from exc
         with session_scope() as s:
             msg = chat_service.finalize(s, ctx.manager, prep, resp, streamed=False)
-            user = s.get(Message, prep.user_message_id)
-            return MessageOut.model_validate(user), MessageOut.model_validate(msg)
+            question = s.get(Message, prep.user_message_id)
+            return MessageOut.model_validate(question), MessageOut.model_validate(msg)
 
     timeout = ctx.settings.stream_timeout_s
     try:
-        user, msg = await asyncio.wait_for(run_in_threadpool(run), timeout=timeout)
+        question, msg = await asyncio.wait_for(run_in_threadpool(run), timeout=timeout)
     except asyncio.TimeoutError as exc:
         raise APIError(504, "timeout", f"No answer within {timeout:.0f}s.") from exc
-    return ChatResponse(conversation_id=prep.conversation_id, user_message=user, message=msg)
+    return ChatResponse(conversation_id=prep.conversation_id, user_message=question, message=msg)
 
 
 @router.post(
@@ -80,10 +87,13 @@ async def chat(req: ChatRequest, ctx: AppContext = Depends(get_ctx), db: Session
                400: {"model": ErrorResponse}},
     summary="Stream an answer as Server-Sent Events",
 )
-async def chat_stream(req: ChatRequest, request: Request, ctx: AppContext = Depends(get_ctx)) -> StreamingResponse:
+async def chat_stream(req: ChatRequest, request: Request, ctx: AppContext = Depends(get_ctx),
+                      user: User = Depends(get_user)) -> StreamingResponse:
+    _rate_limit(ctx, user)
+
     def _prepare() -> chat_service.PreparedChat:
         with session_scope() as s:
-            return chat_service.prepare(s, ctx.manager, req)
+            return chat_service.prepare(s, ctx.manager, req, user)
 
     prep = await run_blocking(ctx, _prepare)
     with session_scope() as s:

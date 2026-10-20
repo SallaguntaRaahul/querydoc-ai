@@ -234,6 +234,7 @@ class SettingsOptions(BaseModel):
     embedding_model_locked: bool
     embedding_model_locked_reason: str | None
     ocr_available: bool = False
+    can_edit: bool = True  # False for non-admin accounts: settings are server-wide
 
 
 class SettingsResponse(BaseModel):

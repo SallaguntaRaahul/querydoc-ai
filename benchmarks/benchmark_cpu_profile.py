@@ -75,7 +75,7 @@ def main() -> None:
     results = []
     for k, max_len in GRID:
         reranker = Reranker(RERANK, device="cpu")
-        reranker.model.max_length = max_len
+        reranker.model.max_seq_length = max_len
         retriever = Retriever(store, embedder, reranker)
         rcfg = RetrievalConfig(top_k=5, fetch_k=30, use_hybrid=True, use_rerank=True, dedup=True, rerank_k=k)
         quality = evaluate(retriever, rcfg)

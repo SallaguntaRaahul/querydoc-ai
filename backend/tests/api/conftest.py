@@ -68,13 +68,14 @@ class StubLLM:
                 return stop.value  # type: ignore[no-any-return]
 
 
-def build_client(tmp: Path, embedder, *, llm: StubLLM | None = None, **engine_overrides) -> Iterator[TestClient]:  # type: ignore[no-untyped-def]
+def build_client(tmp: Path, embedder, *, llm: StubLLM | None = None, app_overrides: dict | None = None,  # type: ignore[no-untyped-def]
+                 **engine_overrides) -> Iterator[TestClient]:
     engine_settings = Settings(data_dir=tmp, use_rerank=False, **engine_overrides)
     service = QueryDocService(engine_settings, embedder=embedder)
     service._llm = llm or StubLLM()  # type: ignore[assignment]
     manager = EngineManager(service=service)
     app_settings = AppSettings(data_dir=tmp, load_models_on_startup=False, max_upload_mb=5,
-                               results_dir=ROOT / "results", frontend_dist=tmp / "no-dist")
+                               results_dir=ROOT / "results", frontend_dist=tmp / "no-dist", **(app_overrides or {}))
     app = create_app(app_settings, manager)
     with TestClient(app) as client:
         client.manager = manager  # type: ignore[attr-defined]

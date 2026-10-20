@@ -135,6 +135,7 @@ def extract_pdf(
     min_chars_per_page: int = 20,
     enable_ocr: bool = False,
     progress: ProgressCallback | None = None,
+    doc_id: str | None = None,
 ) -> ExtractedDocument:
     """Validate ``data`` and extract cleaned text for every page.
 
@@ -176,7 +177,7 @@ def extract_pdf(
             if progress:
                 progress(index + 1, doc.page_count)
         extracted = ExtractedDocument(
-            doc_id=doc_id_from_hash(sha),
+            doc_id=doc_id or doc_id_from_hash(sha),
             filename=safe_name,
             title=str(title).strip() or Path(safe_name).stem,
             sha256=sha,

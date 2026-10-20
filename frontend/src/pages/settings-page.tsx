@@ -5,6 +5,7 @@ import { Controller, useForm, type FieldPath } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/common'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,7 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { settingsSchema, type SettingsForm } from '@/features/settings/schema'
 import { useTheme } from '@/hooks/use-theme'
 import { ApiError } from '@/lib/api'
-import { useSettings, useUpdateSettings } from '@/services/queries'
+import { useAuthConfig, useSettings, useUpdateSettings } from '@/services/queries'
 
 function Field({ id, label, hint, error, children }: { id: string; label: string; hint?: ReactNode; error?: string; children: ReactNode }) {
   return (
@@ -32,6 +33,7 @@ function Field({ id, label, hint, error, children }: { id: string; label: string
 export default function SettingsPage() {
   const { data, isLoading } = useSettings()
   const update = useUpdateSettings()
+  const authConfig = useAuthConfig()
   const { setPreference } = useTheme()
   const form = useForm<SettingsForm>({ resolver: zodResolver(settingsSchema), mode: 'onChange' })
   const { register, control, handleSubmit, reset, formState, watch } = form
@@ -72,7 +74,7 @@ export default function SettingsPage() {
         <PageHeader
           title="Settings"
           description="Models, retrieval and generation. Changes apply immediately; chunking applies to new uploads and re-indexed documents."
-          actions={
+          actions={options.can_edit && (
             <>
               <Button type="button" variant="ghost" size="sm" disabled={!formState.isDirty} onClick={() => reset(data.settings)}>
                 <RotateCcw className="size-4" /> Reset
@@ -81,9 +83,15 @@ export default function SettingsPage() {
                 {update.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save changes
               </Button>
             </>
-          }
+          )}
         />
-        <div className="space-y-5">
+        {!options.can_edit && (
+          <Alert className="mb-5" data-testid="settings-read-only">
+            <Info className="size-4" />
+            <AlertDescription>These settings apply to everyone on this server, so only an administrator can change them. Use the theme toggle in the sidebar for appearance.</AlertDescription>
+          </Alert>
+        )}
+        <fieldset disabled={!options.can_edit} className="min-w-0 space-y-5">
           <Card>
             <CardHeader><CardTitle className="text-base">Appearance & performance</CardTitle><CardDescription>Theme and a retrieval preset.</CardDescription></CardHeader>
             <CardContent className="grid gap-5 sm:grid-cols-2">
@@ -221,11 +229,13 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <p className="flex items-start gap-2 text-xs text-muted-foreground">
-            <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            Local single-user mode: there is no authentication. Do not expose this server to a network you do not trust.
-          </p>
-        </div>
+          {!authConfig.data?.auth_enabled && (
+            <p className="flex items-start gap-2 text-xs text-muted-foreground">
+              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              Local single-user mode: there is no authentication. Do not expose this server to a network you do not trust.
+            </p>
+          )}
+        </fieldset>
       </form>
     </div>
   )

@@ -188,10 +188,17 @@ class QueryDocService:
         batch_size: int | None = None,
         progress: ProgressCallback | None = None,
         persist: bool = True,
+        doc_id: str | None = None,
     ) -> IngestReport:
+        """Index a PDF. ``doc_id`` lets a multi-user host give each owner their own copy
+        of identical bytes; without it the id is the content hash and duplicates are rejected."""
         s = self.settings
         sha = content_hash(data)
-        existing = self.registry.find_by_hash(sha)
+
+        def duplicate() -> DocumentRecord | None:
+            return self.registry.get(doc_id) if doc_id else self.registry.find_by_hash(sha)
+
+        existing = duplicate()
         if existing:
             raise DuplicateDocumentError(existing.doc_id, existing.filename)
         cfg = chunking or self.chunking_config()
@@ -206,6 +213,7 @@ class QueryDocService:
             min_chars_per_page=s.min_chars_per_page,
             enable_ocr=s.enable_ocr,
             progress=(lambda i, n: progress("extract", i / n)) if progress else None,
+            doc_id=doc_id,
         )
         timings["extract"] = (time.perf_counter() - t) * 1000
 
@@ -229,7 +237,7 @@ class QueryDocService:
         timings["embed"] = (time.perf_counter() - t) * 1000
 
         with self._ingest_lock:
-            if self.registry.find_by_hash(sha):  # lost a race with an identical upload
+            if duplicate():  # lost a race with an identical upload
                 raise DuplicateDocumentError(doc.doc_id, doc.filename)
             t = time.perf_counter()
             self.store.add(chunks, vectors)
